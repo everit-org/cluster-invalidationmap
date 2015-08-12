@@ -18,6 +18,7 @@ package org.everit.osgi.cache.jchannel.internal;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import org.jgroups.blocks.MethodLookup;
 
@@ -53,13 +54,22 @@ public interface RemoteMap<K, V> {
     private final Map<Short, Method> methods = new HashMap<Short, Method>(2);
 
     /**
+     * Class from the instanci is constructed.
+     */
+    @SuppressWarnings("rawtypes")
+    private final Class<? extends RemoteMap> oClass;
+
+    /**
      * Creates the instance based on the given object's class.
      *
      * @param oClass
      *          The class of the object from the necessary methods will be gathered.
      */
-    public RemoteMethods(
-        @SuppressWarnings("rawtypes") final Class<? extends RemoteMap> oClass) {
+    public RemoteMethods(@SuppressWarnings("rawtypes") final Class<? extends RemoteMap> oClass) {
+
+      Objects.requireNonNull(oClass, "Cannot gather methods from null");
+
+      this.oClass = oClass;
       try {
         methods.put(
             Short.valueOf(METHOD_ID_INVALIDATE),
@@ -69,6 +79,22 @@ public interface RemoteMap<K, V> {
             oClass.getMethod(METHOD_NAME_INVALIDATE_ALL));
       } catch (NoSuchMethodException | SecurityException e) {
         throw new RuntimeException("Cannot gather methods", e);
+      }
+    }
+
+    /**
+     * Checks that this instance is constructed from the class of the given object.
+     *
+     * @param o
+     *          Any object.
+     * @throws RuntimeException
+     *           If the check fails.
+     */
+    public void checkObject(final Object o) {
+      Objects.requireNonNull(o, "Parameter object cannot be null");
+
+      if (o.getClass() != oClass) {
+        throw new RuntimeException("Method can call only from" + oClass.getName());
       }
     }
 

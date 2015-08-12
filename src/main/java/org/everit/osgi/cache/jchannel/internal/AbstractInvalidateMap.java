@@ -92,6 +92,7 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
 
     public RemoteMapHandler(final Channel channel, final RemoteCall<K, V> server) {
       super(channel, server, METHODS);
+      METHODS.checkObject(server);
     }
 
     @Override
@@ -100,17 +101,14 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
 
     @Override
     public void channelClosed(final Channel channel) {
-      System.out.println("closed");
     }
 
     @Override
     public void channelConnected(final Channel channel) {
-      System.out.println("connected");
     }
 
     @Override
     public void channelDisconnected(final Channel channel) {
-      System.out.println("disconnected");
     }
 
     @Override
@@ -129,7 +127,6 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
 
     @Override
     public void receive(final Message msg) {
-      System.out.println(msg);
     }
 
     @Override
@@ -166,7 +163,7 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
   private final RemoteMapHandler<K, V> remote;
 
   /**
-   * Mutex for the synchronizaton.
+   * Mutex for the synchronization.
    */
   private final Object mutex = this;
 
