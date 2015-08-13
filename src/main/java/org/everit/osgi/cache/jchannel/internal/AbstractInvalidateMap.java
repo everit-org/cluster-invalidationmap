@@ -15,20 +15,16 @@
  */
 package org.everit.osgi.cache.jchannel.internal;
 
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.logging.Logger;
 
 import org.everit.osgi.cache.jchannel.internal.RemoteMap.RemoteMethods;
-import org.jgroups.Address;
 import org.jgroups.Channel;
-import org.jgroups.Message;
-import org.jgroups.View;
 
 /**
  * This class provides a skeletal implementation of a clustered invalidate capable map. It handles a
@@ -54,6 +50,8 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
    */
   public static class RemoteCall<K, V> implements RemoteMap<K, V> {
 
+    private static final Logger LOGGER = Logger.getLogger(RemoteCall.class.getName());
+
     private final Map<K, V> wrapped;
 
     public RemoteCall(final Map<K, V> wrapped) {
@@ -62,11 +60,13 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
 
     @Override
     public void invalidate(final Object key) {
+      LOGGER.info("Invalidate method was called remotely");
       wrapped.remove(key);
     }
 
     @Override
     public void invalidateAll() {
+      LOGGER.info("Invalidate all method was called remotely");
       wrapped.clear();
     }
 
@@ -90,29 +90,19 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
   private static class RemoteMapHandler<K, V> extends AbstractChannelHandler<RemoteCall<K, V>>
       implements RemoteMap<K, V> {
 
-    public RemoteMapHandler(final Channel channel, final RemoteCall<K, V> server) {
+    private final AbstractInvalidateMap<K, V> wrappedInvalidateMap;
+
+    public RemoteMapHandler(final Channel channel, final RemoteCall<K, V> server,
+        final AbstractInvalidateMap<K, V> wrappedInvalidateMap) {
       super(channel, server, METHODS);
       METHODS.checkObject(server);
+      this.wrappedInvalidateMap = wrappedInvalidateMap;
     }
 
     @Override
-    public void block() {
-    }
-
-    @Override
-    public void channelClosed(final Channel channel) {
-    }
-
-    @Override
-    public void channelConnected(final Channel channel) {
-    }
-
-    @Override
-    public void channelDisconnected(final Channel channel) {
-    }
-
-    @Override
-    public void getState(final OutputStream output) throws Exception {
+    public void droppedOut() {
+      // switch to no operation map if dropped out.
+      wrappedInvalidateMap.setNoop(true);
     }
 
     @Override
@@ -126,23 +116,9 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
     }
 
     @Override
-    public void receive(final Message msg) {
-    }
-
-    @Override
-    public void setState(final InputStream input) throws Exception {
-    }
-
-    @Override
-    public void suspect(final Address suspectedMbr) {
-    }
-
-    @Override
-    public void unblock() {
-    }
-
-    @Override
-    public void viewAccepted(final View newView) {
+    public void reConnected() {
+      // switch to normal behavior if reconnected.
+      wrappedInvalidateMap.setNoop(false);
     }
 
   }
@@ -153,9 +129,14 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
   private static final RemoteMethods METHODS = new RemoteMethods(RemoteCall.class);
 
   /**
+   * No operation map instance.
+   */
+  private final ConcurrentMap<K, V> noopConcurrentMap = new NoOpConcurrentMap<>();
+
+  /**
    * The wrapped map.
    */
-  private final ConcurrentMap<K, V> wrapped;
+  private volatile ConcurrentMap<K, V> wrapped;
 
   /**
    * The remote map handler.
@@ -175,7 +156,7 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
 
     wrapped = createWrappedMap();
     RemoteCall<K, V> remoteCall = new RemoteCall<>(wrapped);
-    remote = new RemoteMapHandler<>(channel, remoteCall);
+    remote = new RemoteMapHandler<>(channel, remoteCall, this);
   }
 
   /**
@@ -187,7 +168,7 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
 
     wrapped = createWrappedMap(map);
     RemoteCall<K, V> remoteCall = new RemoteCall<>(wrapped);
-    remote = new RemoteMapHandler<>(channel, remoteCall);
+    remote = new RemoteMapHandler<>(channel, remoteCall, this);
   }
 
   @Override
@@ -356,6 +337,24 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
   }
 
   /**
+   * Switches between normal and no operation behavior.
+   *
+   * @param noop
+   *          no operation behavior if <code>true</code>, normal behavior otherwise.
+   */
+  private void setNoop(final boolean noop) {
+    if (!noop && wrapped instanceof NoOpConcurrentMap) {
+      synchronized (mutex) {
+        wrapped = createWrappedMap();
+      }
+    } else if (noop && !(wrapped instanceof NoOpConcurrentMap)) {
+      synchronized (mutex) {
+        wrapped = noopConcurrentMap;
+      }
+    }
+  }
+
+  /**
    * Sets the backing cluster call timeout (until all acknowledgement have been received).
    *
    * @param timeout
@@ -393,4 +392,5 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
   public Collection<V> values() {
     return wrapped.values();
   }
+
 }

@@ -23,7 +23,7 @@ import org.everit.osgi.cache.jchannel.internal.AbstractInvalidateMap;
 import org.jgroups.Channel;
 
 /**
- * Implementation of the {@link AbstractInvalidateMap} whit {@link ConcurrentHashMap} as backing
+ * Implementation of the {@link AbstractInvalidateMap} with {@link ConcurrentHashMap} as backing
  * container map.
  *
  * @param <K>

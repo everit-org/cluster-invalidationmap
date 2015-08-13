@@ -16,11 +16,19 @@
 package org.everit.osgi.cache.jchannel.internal;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import org.jgroups.Address;
 import org.jgroups.Channel;
-import org.jgroups.ChannelListener;
-import org.jgroups.MembershipListener;
-import org.jgroups.MessageListener;
+import org.jgroups.Message;
+import org.jgroups.ReceiverAdapter;
+import org.jgroups.View;
 import org.jgroups.blocks.MethodCall;
 import org.jgroups.blocks.MethodLookup;
 import org.jgroups.blocks.RequestOptions;
@@ -33,8 +41,30 @@ import org.jgroups.blocks.RpcDispatcher;
  * @param <S>
  *          The type of the remote method handler object.
  */
-public abstract class AbstractChannelHandler<S>
-    implements MessageListener, MembershipListener, ChannelListener {
+public abstract class AbstractChannelHandler<S> extends ReceiverAdapter {
+
+  /**
+   * Members' states.
+   */
+  private static enum State {
+
+    /**
+     * Member is accepted.
+     */
+    ACCEPTED,
+
+    /**
+     * Regular disconnect message detected.
+     */
+    DISCONNECTED,
+
+    /**
+     * Crashed (received a suspected event, or disconnected without regular disconnect message.
+     */
+    CRASHED
+  }
+
+  private static final Logger LOGGER = Logger.getLogger(AbstractChannelHandler.class.getName());
 
   /**
    * The backing channel.
@@ -42,7 +72,7 @@ public abstract class AbstractChannelHandler<S>
   private Channel channel;
 
   /**
-   * The remote method call dispather on the top of the {@link #channel}.
+   * The remote method call dispatcher on the top of the {@link #channel}.
    */
   private RpcDispatcher dispatcher = null;
 
@@ -62,6 +92,16 @@ public abstract class AbstractChannelHandler<S>
   private final MethodLookup methods;
 
   /**
+   * Member registry.
+   */
+  private final ConcurrentMap<Address, State> members = new ConcurrentHashMap<>();
+
+  /**
+   * Cluster dropped out flag.
+   */
+  private boolean droppedOut = false;
+
+  /**
    * Creates the instance.
    *
    * @param channel
@@ -79,7 +119,7 @@ public abstract class AbstractChannelHandler<S>
   }
 
   /**
-   * Calls a method remotely over the channel.
+   * Calls a method remotely over the channel. Does nothing if {@link #isDroppedOut()} flag is set.
    *
    * @param id
    *          The ID of the method.
@@ -87,15 +127,47 @@ public abstract class AbstractChannelHandler<S>
    *          The arguments.
    */
   protected void callRemoteMethod(final short id, final Object... args) {
-    MethodCall call = new MethodCall(id, args);
+    if (droppedOut) {
+      return;
+    }
     try {
+      MethodCall call = new MethodCall(id, args);
       dispatcher.callRemoteMethods(null, call, callOptions);
+      LOGGER.info("Method called: " + call);
     } catch (Exception e) {
       throw new RuntimeException(
           "Cannot call " + methods.findMethod(id) + " with parameters " + Arrays.toString(args),
           e);
     }
   }
+
+  /**
+   * Checks the connection state. Also invokes {@link #droppedOut()} or {@link #reConnected()} if
+   * necessary.
+   */
+  private void checkConnection() {
+    Iterator<State> stateIt = new HashSet<>(members.values()).iterator();
+    if (stateIt.hasNext() && State.CRASHED.equals(stateIt.next()) && !stateIt.hasNext()) {
+      // have members but only in crashed state
+      if (!droppedOut) {
+        // mark drop out if drop out detected firstly in this situation
+        droppedOut = true;
+        droppedOut();
+        LOGGER.info("Dropped out from the cluster.");
+      }
+    } else if (droppedOut) {
+      // mark reconnection if has no members or have not only crashed members and drop out has been
+      // detected earlier.
+      droppedOut = false;
+      reConnected();
+      LOGGER.info("Reconnected to the cluster.");
+    }
+  }
+
+  /**
+   * Listener for detect cluster drop out.
+   */
+  public abstract void droppedOut();
 
   /**
    * Returns the cluster timeout.
@@ -115,6 +187,108 @@ public abstract class AbstractChannelHandler<S>
    */
   public boolean isBlockingUpdates() {
     return callOptions.getMode() == ResponseMode.GET_ALL;
+  }
+
+  public boolean isDroppedOut() {
+    return droppedOut;
+  }
+
+  /**
+   * Maintains the members registry.
+   *
+   * @param view
+   *          The view from the actually connected members can be got.
+   */
+  private void maintainMembers(final View view) {
+    LOGGER.info("Maintaining members...");
+
+    // handle the already registered members
+    Iterator<Entry<Address, State>> membersIt = members.entrySet().iterator();
+    while (membersIt.hasNext()) {
+      Entry<Address, State> member = membersIt.next();
+      Address memberAddress = member.getKey();
+      State memberState = member.getValue();
+      boolean memberPresentInView = view.containsMember(memberAddress);
+
+      switch (memberState) { // examine registered members by the last state
+        case ACCEPTED:
+          // switch to crashed if the last state is accepted but does not present in the view (did
+          // not give the regular disconnect message before disconnected)
+          if (!memberPresentInView) {
+            member.setValue(State.CRASHED);
+            LOGGER.info("Member leaved without sending disconnect message " + memberAddress);
+          }
+          break;
+        case CRASHED:
+          // switch to accepted if previous state is crashed, but present in the new view
+          if (memberPresentInView) {
+            member.setValue(State.ACCEPTED);
+            LOGGER.info("Member accepted " + memberAddress);
+          }
+          break;
+        case DISCONNECTED:
+          // remove member if previous state is regularly disconnected, and does not present in the
+          // new view
+          if (!memberPresentInView) {
+            LOGGER.info("Member disconnected " + memberAddress);
+            membersIt.remove();
+          }
+          break;
+        default:
+          // must not happen
+          throw new RuntimeException("illegal member state: " + memberState.name());
+      }
+    }
+
+    Address self = channel.getAddress();
+    // set accepted state on members were not registered but are in the view
+    view.getMembers().forEach(memberAddress -> {
+      if (self.equals(memberAddress)) {
+        return;
+      }
+      State oldState = members.putIfAbsent(memberAddress, State.ACCEPTED);
+      if (oldState == null) {
+        LOGGER.info("Member accepted " + memberAddress);
+      }
+    });
+
+  }
+
+  /**
+   * {@inheritDoc} Also handles the regular disconnect message. This method shall be invoked from an
+   * override method.
+   */
+  @Override
+  public void receive(final Message msg) {
+    LOGGER.info("Message was got " + msg);
+    Object object = msg.getObject();
+    if (State.DISCONNECTED.name().equals(object)) {
+      members.put(msg.getSrc(), State.DISCONNECTED);
+      LOGGER.info("Member disconnect message was recognized, disconnect... " + msg.getSrc());
+    }
+  }
+
+  /**
+   * Listener for detect cluster reconnection.
+   */
+  public abstract void reConnected();
+
+  /**
+   * Sends the regular disconnect message.
+   */
+  public void sendDisconnect() {
+    Address self = channel.getAddress();
+    channel.getView().getMembers().forEach(memberAddress -> {
+      if (self.equals(memberAddress)) {
+        return;
+      }
+      try {
+        channel.send(memberAddress, State.DISCONNECTED.name());
+        LOGGER.info("Member disconnect message was sent " + memberAddress);
+      } catch (Exception e) {
+        LOGGER.log(Level.WARNING, "Member disconnect message cannot be sent " + memberAddress, e);
+      }
+    });
   }
 
   /**
@@ -141,6 +315,12 @@ public abstract class AbstractChannelHandler<S>
   /**
    * Starts the channel handler.
    *
+   * <p>
+   * Note: Channel must discard echo messages so this method invokes
+   * {@link Channel#setDiscardOwnMessages(boolean)} with the parameter <code>true</code>.
+   * <strong> Do not modify this flag while the map is in the cluster!</strong>
+   * </p>
+   *
    * @param stateTimeout
    *          The timeout in milliseconds of the starting method.
    * @throws Exception
@@ -151,21 +331,36 @@ public abstract class AbstractChannelHandler<S>
       return;
     }
     channel.setDiscardOwnMessages(true);
-    channel.addChannelListener(this);
     dispatcher = new RpcDispatcher(channel, this, this, server);
     dispatcher.setMethodLookup(methods);
     channel.getState(null, stateTimeout);
+    maintainMembers(channel.getView());
+    checkConnection();
+    LOGGER.info("Channel was started");
   }
 
   /**
    * Stops the channel handler.
    */
-  public void stop() {
+  public final void stop() {
     if (dispatcher != null) {
+      sendDisconnect();
       dispatcher.stop();
       dispatcher = null;
+      LOGGER.info("Channel was stopped");
     }
-    channel.removeChannelListener(this);
+  }
+
+  @Override
+  public void suspect(final Address suspectedMember) {
+    members.put(suspectedMember, State.CRASHED);
+    LOGGER.info("Member crashed " + suspectedMember);
+  }
+
+  @Override
+  public void viewAccepted(final View newView) {
+    maintainMembers(newView);
+    checkConnection();
   }
 
 }
