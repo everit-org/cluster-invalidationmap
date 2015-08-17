@@ -28,8 +28,8 @@ import org.jgroups.Channel;
 
 /**
  * This class provides a skeletal implementation of a clustered invalidate capable map. It handles a
- * wrapped map, and a channel for the cluster calls. A remote remove of the key will follows any
- * removing of an object from the wrapped map (invalidation).
+ * wrapped map, and a channel for the cluster calls. A remote remove of the key will follows the
+ * {@link #remove(Object)} and {@link #clear()} operation on the wrapped map (invalidation).
  *
  * @param <K>
  *          The type of keys maintained by this map.
@@ -37,7 +37,7 @@ import org.jgroups.Channel;
  *          The type of mapped values.
  */
 public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
-    implements ConcurrentMap<K, V> {
+    implements Map<K, V> {
 
   /**
    * Implementation of the {@link RemoteMap}. It's methods will be invoked by the
@@ -131,22 +131,17 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
   /**
    * No operation map instance.
    */
-  private final ConcurrentMap<K, V> noopConcurrentMap = new NoOpConcurrentMap<>();
+  private final Map<K, V> noopConcurrentMap = new NoOpMap<>();
 
   /**
    * The wrapped map.
    */
-  private volatile ConcurrentMap<K, V> wrapped;
+  private volatile Map<K, V> wrapped;
 
   /**
    * The remote map handler.
    */
   private final RemoteMapHandler<K, V> remote;
-
-  /**
-   * Mutex for the synchronization.
-   */
-  private final Object mutex = this;
 
   /**
    * Constructs a new {@link AbstractInvalidateMap} with channel.
@@ -207,7 +202,7 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
    *
    * @return An empty map.
    */
-  protected abstract ConcurrentMap<K, V> createWrappedMap();
+  protected abstract Map<K, V> createWrappedMap();
 
   /**
    * Creates a {@link ConcurrentMap} based on the parameter.
@@ -223,7 +218,7 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
    *
    * @return The map based on the given parameter.
    */
-  protected abstract ConcurrentMap<K, V> createWrappedMap(Map<K, V> from);
+  protected abstract Map<K, V> createWrappedMap(Map<K, V> from);
 
   @Override
   public Set<Entry<K, V>> entrySet() {
@@ -262,67 +257,15 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
 
   @Override
   public V put(final K key, final V value) {
-    synchronized (mutex) {
-      boolean containsKey = wrapped.containsKey(key);
-      V old = wrapped.put(key, value);
-      if (containsKey) {
-        remote.invalidate(key);
-      }
-      return old;
-    }
-  }
-
-  @Override
-  public V putIfAbsent(final K key, final V value) {
-    return wrapped.putIfAbsent(key, value);
+    V old = wrapped.put(key, value);
+    return old;
   }
 
   @Override
   public V remove(final Object key) {
-    synchronized (mutex) {
-      boolean containsKey = wrapped.containsKey(key);
-      V old = wrapped.remove(key);
-      if (containsKey) {
-        remote.invalidate(key);
-      }
-      return old;
-    }
-  }
-
-  @Override
-  public boolean remove(final Object key, final Object value) {
-    synchronized (mutex) {
-      if (contains(key, value)) {
-        wrapped.remove(key);
-        remote.invalidate(key);
-        return true;
-      } else {
-        return false;
-      }
-    }
-  }
-
-  @Override
-  public V replace(final K key, final V value) {
-    synchronized (mutex) {
-      V current = get(key);
-      if ((current != null) || containsKey(key)) {
-        current = put(key, value);
-      }
-      return current;
-    }
-  }
-
-  @Override
-  public boolean replace(final K key, final V oldValue, final V newValue) {
-    synchronized (mutex) {
-      if (contains(key, oldValue)) {
-        put(key, newValue);
-        return true;
-      } else {
-        return false;
-      }
-    }
+    V old = wrapped.remove(key);
+    remote.invalidate(key);
+    return old;
   }
 
   /**
@@ -343,14 +286,10 @@ public abstract class AbstractInvalidateMap<K, V> extends AbstractMap<K, V>
    *          no operation behavior if <code>true</code>, normal behavior otherwise.
    */
   private void setNoop(final boolean noop) {
-    if (!noop && wrapped instanceof NoOpConcurrentMap) {
-      synchronized (mutex) {
-        wrapped = createWrappedMap();
-      }
-    } else if (noop && !(wrapped instanceof NoOpConcurrentMap)) {
-      synchronized (mutex) {
-        wrapped = noopConcurrentMap;
-      }
+    if (!noop && wrapped instanceof NoOpMap) {
+      wrapped = createWrappedMap();
+    } else if (noop && !(wrapped instanceof NoOpMap)) {
+      wrapped = noopConcurrentMap;
     }
   }
 

@@ -15,7 +15,7 @@
  */
 package org.everit.osgi.cache.jchannel.tests;
 
-import org.everit.osgi.cache.jchannel.InvalidateSkipListMap;
+import org.everit.osgi.cache.jchannel.InvalidateTreeMap;
 import org.jgroups.Channel;
 import org.jgroups.JChannel;
 
@@ -25,7 +25,7 @@ public class MainSlave {
 
     Channel channel = new JChannel("udp.xml");
     channel.connect("map");
-    InvalidateSkipListMap<String,String> map = new InvalidateSkipListMap<>(channel);
+    InvalidateTreeMap<String,String> map = new InvalidateTreeMap<>(channel);
     map.start(1000);
 
     map.put("b", "xxx");

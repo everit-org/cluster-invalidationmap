@@ -16,42 +16,42 @@
 package org.everit.osgi.cache.jchannel;
 
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.everit.osgi.cache.jchannel.internal.AbstractInvalidateMap;
 import org.jgroups.Channel;
 
 /**
- * Implementation of the {@link AbstractInvalidateMap} with {@link ConcurrentSkipListMap} as backing
- * container map.
+ * Implementation of the {@link AbstractInvalidateMap} with {@link TreeMap} as backing container
+ * map.
  *
  * @param <K>
  *          The type of keys maintained by this map.
  * @param <V>
  *          The type of mapped values.
  */
-public class InvalidateSkipListMap<K, V> extends AbstractInvalidateMap<K, V> {
+public class InvalidateTreeMap<K, V> extends AbstractInvalidateMap<K, V> {
 
-  public InvalidateSkipListMap(final Channel channel) {
+  public InvalidateTreeMap(final Channel channel) {
     super(channel);
   }
 
-  public InvalidateSkipListMap(final ConcurrentMap<K, V> map, final Channel channel) {
+  public InvalidateTreeMap(final ConcurrentMap<K, V> map, final Channel channel) {
     super(map, channel);
   }
 
   @Override
-  protected ConcurrentMap<K, V> createWrappedMap() {
-    return new ConcurrentSkipListMap<>();
+  protected Map<K, V> createWrappedMap() {
+    return new TreeMap<>();
   }
 
   @Override
-  protected ConcurrentMap<K, V> createWrappedMap(final Map<K, V> from) {
-    if (from instanceof ConcurrentSkipListMap) {
-      return (ConcurrentSkipListMap<K, V>) from;
+  protected Map<K, V> createWrappedMap(final Map<K, V> from) {
+    if (from instanceof TreeMap) {
+      return from;
     } else {
-      ConcurrentMap<K, V> wrappedMap = createWrappedMap();
+      Map<K, V> wrappedMap = createWrappedMap();
       wrappedMap.putAll(from);
       return wrappedMap;
     }

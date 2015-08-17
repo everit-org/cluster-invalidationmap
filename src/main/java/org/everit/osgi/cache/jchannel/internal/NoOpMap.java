@@ -20,8 +20,8 @@ import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * No operation map.
@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentMap;
  * @param <V>
  *          The type of mapped values
  */
-public class NoOpConcurrentMap<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> {
+public class NoOpMap<K, V> extends AbstractMap<K, V> implements Map<K, V> {
 
   /**
    * No operation set.
@@ -49,7 +49,7 @@ public class NoOpConcurrentMap<K, V> extends AbstractMap<K, V> implements Concur
     }
 
     @Override
-    public Iterator<java.util.Map.Entry<K, V>> iterator() {
+    public Iterator<Entry<K, V>> iterator() {
       return Collections.emptyIterator();
     }
 
@@ -63,26 +63,6 @@ public class NoOpConcurrentMap<K, V> extends AbstractMap<K, V> implements Concur
   @Override
   public Set<Entry<K, V>> entrySet() {
     return noopEntrySet;
-  }
-
-  @Override
-  public V putIfAbsent(final K key, final V value) {
-    return null;
-  }
-
-  @Override
-  public boolean remove(final Object key, final Object value) {
-    return false;
-  }
-
-  @Override
-  public V replace(final K key, final V value) {
-    return null;
-  }
-
-  @Override
-  public boolean replace(final K key, final V oldValue, final V newValue) {
-    return false;
   }
 
 }

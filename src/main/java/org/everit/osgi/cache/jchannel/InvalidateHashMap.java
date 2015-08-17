@@ -15,16 +15,16 @@
  */
 package org.everit.osgi.cache.jchannel;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.everit.osgi.cache.jchannel.internal.AbstractInvalidateMap;
 import org.jgroups.Channel;
 
 /**
- * Implementation of the {@link AbstractInvalidateMap} with {@link ConcurrentHashMap} as backing
- * container map.
+ * Implementation of the {@link AbstractInvalidateMap} with {@link HashMap} as backing container
+ * map.
  *
  * @param <K>
  *          The type of keys maintained by this map.
@@ -42,16 +42,16 @@ public class InvalidateHashMap<K, V> extends AbstractInvalidateMap<K, V> {
   }
 
   @Override
-  protected ConcurrentMap<K, V> createWrappedMap() {
-    return new ConcurrentHashMap<>();
+  protected Map<K, V> createWrappedMap() {
+    return new HashMap<>();
   }
 
   @Override
-  protected ConcurrentMap<K, V> createWrappedMap(final Map<K, V> from) {
-    if (from instanceof ConcurrentHashMap) {
-      return (ConcurrentHashMap<K, V>) from;
+  protected Map<K, V> createWrappedMap(final Map<K, V> from) {
+    if (from instanceof HashMap) {
+      return from;
     } else {
-      ConcurrentMap<K, V> wrappedMap = createWrappedMap();
+      Map<K, V> wrappedMap = createWrappedMap();
       wrappedMap.putAll(from);
       return wrappedMap;
     }

@@ -18,7 +18,7 @@ package org.everit.osgi.cache.jchannel.tests;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-import org.everit.osgi.cache.jchannel.InvalidateSkipListMap;
+import org.everit.osgi.cache.jchannel.InvalidateTreeMap;
 import org.jgroups.Channel;
 import org.jgroups.JChannel;
 
@@ -28,7 +28,7 @@ public class MainMaster {
 
     Channel channel = new JChannel("udp.xml");
     channel.connect("map");
-    InvalidateSkipListMap<String,String> map = new InvalidateSkipListMap<>(channel);
+    InvalidateTreeMap<String,String> map = new InvalidateTreeMap<>(channel);
     map.start(1000);
 
     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in, "UTF-8"));
