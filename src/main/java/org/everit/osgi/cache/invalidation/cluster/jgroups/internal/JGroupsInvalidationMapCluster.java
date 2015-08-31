@@ -383,7 +383,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     channel.setName(self.name);
     nodeRegistry.clear();
     messageCounter.set(0);
-    self.startTimeNanos = 9848095388121L; //System.nanoTime();
+    self.startTimeNanos = System.nanoTime();
     dispatcher = new RpcDispatcher(channel, server);
     dispatcher.setMethodLookup(server.methods);
     pingScheduler = initScheduler();
