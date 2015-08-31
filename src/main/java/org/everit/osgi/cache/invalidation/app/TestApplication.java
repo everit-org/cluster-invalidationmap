@@ -45,9 +45,49 @@ import org.everit.osgi.cache.invalidation.cluster.jgroups.JGroupsInvalidationMap
 import org.everit.osgi.cache.invalidation.cluster.jgroups.JGroupsNodeConfiguration;
 import org.jgroups.conf.ConfiguratorFactory;
 
-public class TestApplication extends JFrame {
+/**
+ * Test Application's frame.
+ */
+public class TestApplication {
 
-  private static final long serialVersionUID = 1L;
+  private static final int WIDTH_90 = 90;
+
+  private static final int WIDTH_190 = 190;
+
+  private static final int WIDTH_350 = 350;
+
+  private static final int HEIGHT_20 = 20;
+
+  private static final int HEIGHT_360 = 360;
+
+  private static final int HEIGHT_450 = 450;
+
+  private static final int POS_10 = 10;
+
+  private static final int POS_20 = 20;
+
+  private static final int POS_30 = 30;
+
+  private static final int POS_50 = 50;
+
+  private static final int POS_70 = 70;
+
+  private static final int POS_100 = 100;
+
+  private static final int POS_210 = 210;
+
+  private static final int POS_340 = 340;
+
+  private static final int POS_370 = 370;
+
+  /**
+   * Application entry point.
+   *
+   * @param args
+   *          Arguments.
+   * @throws Exception
+   *           If error occurred.
+   */
 
   public static void main(final String[] args) throws Exception {
 
@@ -91,6 +131,8 @@ public class TestApplication extends JFrame {
 
   private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
+  private final JFrame frame;
+
   private final JLabel lblMap;
 
   private final JList<Entry<String, String>> lstMap;
@@ -109,14 +151,22 @@ public class TestApplication extends JFrame {
 
   private final JButton btnClear;
 
+  /**
+   * Initializes the frame.
+   *
+   * @param map
+   *          The map
+   * @param nodeName
+   *          The node name.
+   */
   public TestApplication(final InvalidationMap<String, String> map, final String nodeName) {
-    super("Invalidation Map Test :: " + nodeName);
     this.map = map;
 
-    setLayout(null);
-    setBounds(20, 20, 350, 450);
-    setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-    addWindowListener(new WindowAdapter() {
+    frame = new JFrame("Invalidation Map Test :: " + nodeName);
+    frame.setLayout(null);
+    frame.setBounds(POS_20, POS_20, WIDTH_350, HEIGHT_450);
+    frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+    frame.addWindowListener(new WindowAdapter() {
       @Override
       public void windowClosing(final WindowEvent e) {
         scheduler.shutdownNow();
@@ -125,52 +175,60 @@ public class TestApplication extends JFrame {
     });
 
     lblMap = new JLabel("Map content");
-    lblMap.setBounds(10, 10, 190, 20);
+    lblMap.setBounds(POS_10, POS_10, WIDTH_190, HEIGHT_20);
     lblMap.setHorizontalAlignment(SwingConstants.CENTER);
-    getContentPane().add(lblMap);
+    frame.getContentPane().add(lblMap);
     lstMap = new JList<>();
-    lstMap.setBounds(10, 30, 190, 360);
+    lstMap.setBounds(POS_10, POS_30, WIDTH_190, HEIGHT_360);
     lstMap.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     lstMap.setBorder(BorderFactory.createLineBorder(Color.BLACK));
-    getContentPane().add(lstMap);
+    frame.getContentPane().add(lstMap);
 
     lblKey = new JLabel("Key");
-    lblKey.setBounds(210, 10, 90, 20);
+    lblKey.setBounds(POS_210, POS_10, WIDTH_90, HEIGHT_20);
     lblKey.setHorizontalAlignment(SwingConstants.CENTER);
-    getContentPane().add(lblKey);
+    frame.getContentPane().add(lblKey);
     fldKey = new JTextField();
-    fldKey.setBounds(210, 30, 90, 20);
-    getContentPane().add(fldKey);
+    fldKey.setBounds(POS_210, POS_30, WIDTH_90, HEIGHT_20);
+    frame.getContentPane().add(fldKey);
 
     lblValue = new JLabel("Value");
-    lblValue.setBounds(210, 50, 90, 20);
+    lblValue.setBounds(POS_210, POS_50, WIDTH_90, HEIGHT_20);
     lblValue.setHorizontalAlignment(SwingConstants.CENTER);
-    getContentPane().add(lblValue);
+    frame.getContentPane().add(lblValue);
     fldValue = new JTextField();
-    fldValue.setBounds(210, 70, 90, 20);
-    getContentPane().add(fldValue);
+    fldValue.setBounds(POS_210, POS_70, WIDTH_90, HEIGHT_20);
+    frame.getContentPane().add(fldValue);
 
     btnAdd = new JButton("Add");
-    btnAdd.setBounds(210, 100, 90, 20);
+    btnAdd.setBounds(POS_210, POS_100, WIDTH_90, HEIGHT_20);
     btnAdd.addActionListener(this::btnAddAction);
-    getContentPane().add(btnAdd);
+    frame.getContentPane().add(btnAdd);
 
     btnRemove = new JButton("Remove");
-    btnRemove.setBounds(210, 340, 90, 20);
+    btnRemove.setBounds(POS_210, POS_340, WIDTH_90, HEIGHT_20);
     btnRemove.addActionListener(this::btnRemoveAction);
-    getContentPane().add(btnRemove);
+    frame.getContentPane().add(btnRemove);
     btnClear = new JButton("Clear");
-    btnClear.setBounds(210, 370, 90, 20);
+    btnClear.setBounds(POS_210, POS_370, WIDTH_90, HEIGHT_20);
     btnClear.addActionListener(this::btnClearAction);
-    getContentPane().add(btnClear);
+    frame.getContentPane().add(btnClear);
 
     SwingUtilities.invokeLater(() -> {
       map.start();
-      TestApplication.this.setVisible(true);
+      frame.setVisible(true);
     });
-    scheduler.scheduleAtFixedRate(this::lstMapUpdate, 0, 100, TimeUnit.MILLISECONDS);
+
+    final int period = 100;
+    scheduler.scheduleAtFixedRate(this::lstMapUpdate, 0, period, TimeUnit.MILLISECONDS);
   }
 
+  /**
+   * Button add action.
+   *
+   * @param event
+   *          Event.
+   */
   public void btnAddAction(final ActionEvent event) {
     String key = fldKey.getText();
     String value = fldValue.getText();
@@ -184,6 +242,12 @@ public class TestApplication extends JFrame {
     map.clear();
   }
 
+  /**
+   * Button remove action.
+   *
+   * @param event
+   *          Action.
+   */
   public void btnRemoveAction(final ActionEvent event) {
     if (lstMap.isSelectionEmpty()) {
       return;
@@ -192,6 +256,9 @@ public class TestApplication extends JFrame {
     map.remove(key);
   }
 
+  /**
+   * Updates map list box.
+   */
   public void lstMapUpdate() {
     SwingUtilities.invokeLater(() -> {
 

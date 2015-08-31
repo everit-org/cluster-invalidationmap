@@ -36,8 +36,7 @@ import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapClusterFact
  * @param <V>
  *          The type of mapped values.
  */
-public class InvalidationMap<K, V> extends AbstractMap<K, V>
-    implements Map<K, V> {
+public class InvalidationMap<K, V> extends AbstractMap<K, V> {
 
   /**
    * Implementation of the {@link InvalidationMapCallback}. It's methods will be invoked by the
