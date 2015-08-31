@@ -98,7 +98,7 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V>
    *          The cluster factory.
    */
   public InvalidationMap(final Map<K, V> map,
-      final InvalidationMapClusterFactory clusterFactory) throws Exception {
+      final InvalidationMapClusterFactory clusterFactory) {
     Objects.requireNonNull(map, "Cannot create with null map");
     Objects.requireNonNull(clusterFactory, "Cannot create with null clusterFactory");
 
