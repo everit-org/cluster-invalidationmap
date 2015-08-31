@@ -256,7 +256,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   }
 
   @Override
-  public synchronized long getPingPeriod() {
+  public long getPingPeriod() {
     return pingPeriod;
   }
 
@@ -307,16 +307,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       LOGGER.info("Node joined or restarted " + nodeName + ":" + startTimeNanos);
     } else {
       if (!notifyRegistry.apply(nodeName, gotMessageNumber)) {
-        SyncCheckTask checkSyncLater = new SyncCheckTask(nodeName, gotMessageNumber);
-        synchronized (this) {
-          ScheduledFuture<?> oldSyncCheckFuture = syncCheckSchedules.get(nodeName);
-          if (oldSyncCheckFuture == null || oldSyncCheckFuture.isDone()) {
-            // schedule sync check of necessary
-            ScheduledFuture<?> syncCheckFuture = pingScheduler.schedule(checkSyncLater,
-                syncCheckDelay, TimeUnit.MILLISECONDS);
-            syncCheckSchedules.putIfAbsent(nodeName, syncCheckFuture);
-          }
-        }
+        scheduleSynchCheckTaskIfNecessary(nodeName, gotMessageNumber);
       }
     }
 
@@ -353,17 +344,33 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     notifyMessage(nodeName, startTimeNanos, gotMessageNumber, nodeRegistry::receive);
   }
 
-  @Override
-  public synchronized void setPingPeriod(final long period) {
-    if (period <= 0) {
-      throw new IllegalArgumentException("period must be greater than null");
-    }
-    this.pingPeriod = period;
+  private synchronized void schedulePingSenderTask(final long period) {
     if (pingSenderSchedule != null && !pingSenderSchedule.isDone()) {
       pingSenderSchedule.cancel(true);
     }
     pingSenderSchedule = pingScheduler.scheduleAtFixedRate(new PingSenderTask(), 0, period,
         TimeUnit.MILLISECONDS);
+  }
+
+  private synchronized void scheduleSynchCheckTaskIfNecessary(final String nodeName,
+      final long gotMessageNumber) {
+    ScheduledFuture<?> oldSyncCheckFuture = syncCheckSchedules.get(nodeName);
+    if (oldSyncCheckFuture == null || oldSyncCheckFuture.isDone()) {
+      // schedule sync check of necessary
+      SyncCheckTask syncCheckLater = new SyncCheckTask(nodeName, gotMessageNumber);
+      ScheduledFuture<?> syncCheckFuture = pingScheduler.schedule(syncCheckLater,
+          syncCheckDelay, TimeUnit.MILLISECONDS);
+      syncCheckSchedules.put(nodeName, syncCheckFuture);
+    }
+  }
+
+  @Override
+  public void setPingPeriod(final long period) {
+    if (period <= 0) {
+      throw new IllegalArgumentException("period must be greater than null");
+    }
+    this.pingPeriod = period;
+    schedulePingSenderTask(period);
   }
 
   @Override
@@ -391,8 +398,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       toAsync: { // TODO
         channel.connect(clusterName);
       }
-      pingSenderSchedule = pingScheduler
-          .scheduleAtFixedRate(new PingSenderTask(), 0, pingPeriod, TimeUnit.MILLISECONDS);
+      schedulePingSenderTask(pingPeriod);
     } catch (Exception e) {
       pingScheduler.shutdownNow();
       pingSenderSchedule = null;
