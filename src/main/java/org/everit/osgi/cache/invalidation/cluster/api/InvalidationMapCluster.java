@@ -41,11 +41,8 @@ public interface InvalidationMapCluster extends InvalidationMapCallback {
 
   /**
    * Starts the clustered operation.
-   *
-   * @param stateTimeout
-   *          The timeout in milliseconds of the starting method.
    */
-  void start(long stateTimeout);
+  void start();
 
   /**
    * Stops the clustered operation.

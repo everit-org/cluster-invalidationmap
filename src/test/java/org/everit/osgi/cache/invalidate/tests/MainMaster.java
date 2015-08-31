@@ -46,7 +46,7 @@ public class MainMaster {
     InvalidationMap<String, String> map = new InvalidationMap<>(wrapped, factory::create);
 
     try {
-      map.start(1000);
+      map.start();
       BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in, "UTF-8"));
       bufferedReader.readLine();
       map.put("valami", "a");

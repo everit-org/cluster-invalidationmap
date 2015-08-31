@@ -187,22 +187,15 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V>
 
   /**
    * Starts the backing cluster.
-   *
-   * @param stateTimeout
-   *          The timeout in milliseconds of the starting method.
-   * @throws Exception
-   *           If any error occurred.
    */
-  public final void start(final long stateTimeout) throws Exception {
-    // TODO check if we can wait forever on another thread (and if parameter is 0, stop can be
-    // called)
-    cluster.start(stateTimeout);
+  public void start() {
+    cluster.start();
   }
 
   /**
    * Stops the backing cluster.
    */
-  public final void stop() {
+  public void stop() {
     cluster.stop();
   }
 

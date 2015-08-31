@@ -97,7 +97,6 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
         LOGGER.warning("Incomming packet loss detected on node " + nodeName);
       }
     }
-
   }
 
   /**
@@ -345,19 +344,24 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   }
 
   private synchronized void schedulePingSenderTask(final long period) {
-    if (pingSenderSchedule != null && !pingSenderSchedule.isDone()) {
+    if (dispatcher == null || pingSenderSchedule != null && !pingSenderSchedule.isDone()) {
       pingSenderSchedule.cancel(true);
     }
+    // FIXME handle RejectedExecutionException?
     pingSenderSchedule = pingScheduler.scheduleAtFixedRate(new PingSenderTask(), 0, period,
         TimeUnit.MILLISECONDS);
   }
 
   private synchronized void scheduleSynchCheckTaskIfNecessary(final String nodeName,
       final long gotMessageNumber) {
+    if (dispatcher == null) {
+      return;
+    }
     ScheduledFuture<?> oldSyncCheckFuture = syncCheckSchedules.get(nodeName);
     if (oldSyncCheckFuture == null || oldSyncCheckFuture.isDone()) {
       // schedule sync check of necessary
       SyncCheckTask syncCheckLater = new SyncCheckTask(nodeName, gotMessageNumber);
+      // FIXME handle RejectedExecutionException?
       ScheduledFuture<?> syncCheckFuture = pingScheduler.schedule(syncCheckLater,
           syncCheckDelay, TimeUnit.MILLISECONDS);
       syncCheckSchedules.put(nodeName, syncCheckFuture);
@@ -382,7 +386,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   }
 
   @Override
-  public synchronized void start(final long stateTimeout) {
+  public synchronized void start() {
     if (dispatcher != null) {
       return;
     }
@@ -395,19 +399,20 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     dispatcher.setMethodLookup(server.methods);
     pingScheduler = initScheduler();
     try {
-      toAsync: { // TODO
-        channel.connect(clusterName);
-      }
+      channel.connect(clusterName);
       schedulePingSenderTask(pingPeriod);
     } catch (Exception e) {
       pingScheduler.shutdownNow();
       pingSenderSchedule = null;
       syncCheckSchedules.clear();
       dispatcher.stop();
-      dispatcher = null;
       channel.close();
       nodeRegistry.clear();
-      throw new RuntimeException(e);
+      dispatcher = null;
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
+      }
+      throw new RuntimeException("Cannot start invalidation map cluster", e);
     }
     LOGGER.info("Channel was started");
   }
@@ -419,9 +424,9 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       pingSenderSchedule = null;
       syncCheckSchedules.clear();
       dispatcher.stop();
-      dispatcher = null;
       channel.close();
       nodeRegistry.clear();
+      dispatcher = null;
       LOGGER.info("Channel was stopped");
     }
   }

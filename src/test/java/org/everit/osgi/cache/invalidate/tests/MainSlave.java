@@ -44,7 +44,7 @@ public class MainSlave {
     InvalidationMap<String, String> map = new InvalidationMap<>(wrapped, factory::create);
 
     try {
-      map.start(1000);
+      map.start();
 
       map.put("b", "xxx");
       map.put("valami", "valami");
