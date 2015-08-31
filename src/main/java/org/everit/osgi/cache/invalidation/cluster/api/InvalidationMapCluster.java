@@ -17,9 +17,10 @@ public interface InvalidationMapCluster extends InvalidationMapCallback {
    * Returns the sync check delay.
    *
    * @return The sync check delay.
-   * @see #setSynchCheckDelay(long)
+   * @see #setSyncCheckDelay(long)
    */
-  long getSynchCheckDelay();
+
+  long getSyncCheckDelay();
 
   /**
    * Sets the ping message scheduler period.
@@ -30,13 +31,13 @@ public interface InvalidationMapCluster extends InvalidationMapCallback {
   void setPingPeriod(long period);
 
   /**
-   * Sets the synch check delay in milliseconds. If the handler detects a potential message loss (or
+   * Sets the sync check delay in milliseconds. If the handler detects a potential message loss (or
    * swap) schedules a message sync check in the time set.
    *
    * @param synchCheckDelay
-   *          The synch check delay.
+   *          The synch check delay in milliseconds.
    */
-  void setSynchCheckDelay(long synchCheckDelay);
+  void setSyncCheckDelay(long synchCheckDelay);
 
   /**
    * Starts the clustered operation.

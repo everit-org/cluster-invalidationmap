@@ -185,7 +185,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   /**
    * Delay of message sync check.
    */
-  private long synchCheckDelay = DEFAULT_PERIOD;
+  private long syncCheckDelay = DEFAULT_PERIOD;
 
   /**
    * Creates the instance.
@@ -261,8 +261,8 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   }
 
   @Override
-  public long getSynchCheckDelay() {
-    return synchCheckDelay;
+  public long getSyncCheckDelay() {
+    return syncCheckDelay;
   }
 
   private ScheduledExecutorService initScheduler() {
@@ -313,7 +313,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
           if (oldSyncCheckFuture == null || oldSyncCheckFuture.isDone()) {
             // schedule sync check of necessary
             ScheduledFuture<?> syncCheckFuture = pingScheduler.schedule(checkSyncLater,
-                synchCheckDelay, TimeUnit.MILLISECONDS);
+                syncCheckDelay, TimeUnit.MILLISECONDS);
             syncCheckSchedules.putIfAbsent(nodeName, syncCheckFuture);
           }
         }
@@ -367,11 +367,11 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   }
 
   @Override
-  public void setSynchCheckDelay(final long synchCheckDelay) {
-    if (synchCheckDelay <= 0) {
+  public void setSyncCheckDelay(final long syncCheckDelay) {
+    if (syncCheckDelay <= 0) {
       throw new IllegalArgumentException("synchCheckDelay must be greater than null");
     }
-    this.synchCheckDelay = synchCheckDelay;
+    this.syncCheckDelay = syncCheckDelay;
   }
 
   @Override

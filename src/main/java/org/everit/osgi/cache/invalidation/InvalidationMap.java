@@ -151,7 +151,7 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V>
   }
 
   public long getSynchCheckDelay() {
-    return cluster.getSynchCheckDelay();
+    return cluster.getSyncCheckDelay();
   }
 
   @Override
@@ -177,7 +177,7 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V>
   }
 
   public void setSynchCheckDelay(final long synchCheckDelay) {
-    cluster.setSynchCheckDelay(synchCheckDelay);
+    cluster.setSyncCheckDelay(synchCheckDelay);
   }
 
   @Override
