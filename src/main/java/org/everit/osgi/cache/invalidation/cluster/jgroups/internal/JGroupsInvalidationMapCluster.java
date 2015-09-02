@@ -47,23 +47,35 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   /**
    * Ping message sender task. It send asynchronously a ping message to all of the nodes.
    */
+  private final class LocalInvalidateAfterNodeCrashTask implements Runnable {
+
+    /**
+     * Name of the node that causes the invalidation.
+     */
+    private final String nodeName;
+
+    public LocalInvalidateAfterNodeCrashTask(final String nodeName) {
+      super();
+      this.nodeName = nodeName;
+    }
+
+    @Override
+    public void run() {
+      invalidationCallback.invalidateAll();
+      LOGGER.warning("Node " + nodeName + " was crashed. Invalidate local cache");
+    }
+
+  }
+
+  /**
+   * Ping message sender task. It send asynchronously a ping message to all of the nodes.
+   */
   private final class PingSenderTask implements Runnable {
 
     @Override
     public void run() {
-      if (!channel.isConnected()) {
-        LOGGER.warning("Tried to ping but channel has been closed");
-        return;
-      }
-      MethodCall pingMethodCall = new MethodCall(RemoteCall.METHOD_ID_PING, self.name,
-          self.startTimeNanos, messageCounter.get());
-      try {
-        dispatcher.callRemoteMethods(null, pingMethodCall, ASYNC_REQUEST_OPTIONS);
-        LOGGER.info("Ping was sent");
-      } catch (Exception e) {
-        // FIXME maybe noop map?
-        LOGGER.severe("Cannot cast ping");
-      }
+      callRemoteMethod(RemoteCall.METHOD_ID_PING, false);
+      LOGGER.info("Ping was sent");
     }
 
   }
@@ -94,7 +106,8 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       if (!nodeRegistry.checkSync(nodeName, lastPing)) {
         nodeRegistry.reset(nodeName, lastPing);
         invalidationCallback.invalidateAll();
-        LOGGER.warning("Incomming packet loss detected on node " + nodeName);
+        LOGGER.warning("Incomming packet loss detected on node " + nodeName
+            + ". Local cache has been invalidated");
       }
     }
   }
@@ -111,9 +124,21 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   private static final int PING_SCHEDULER_CORE_POOL_SIZE = 3;
 
   /**
-   * Default timeout.
+   * Default period. 5 seconds.
    */
-  private static final long DEFAULT_PERIOD = 5000;
+  private static final long DEFAULT_PING_PERIOD = 5000;
+
+  /**
+   * Default invalidate timeout. 30 seconds.
+   */
+  private static final long DEFAULT_INVALIDATE_TIMEOUT = 30000;
+
+  /**
+   * Reschedule a task only if the current delay of the previous schedule is less than the initial
+   * delay multiplied by this constant. Must be less or equal to one, and should be not too close to
+   * zero.
+   */
+  private static final float RESCHEDULE_THRESHOLD_MULTIPLIER = 0.95F;
 
   /**
    * Asynchronous request options.
@@ -147,9 +172,14 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   final InvalidationMapCallback invalidationCallback;
 
   /**
-   * Self information.
+   * Self name.
    */
-  final NodeInfo self;
+  final String nodeName;
+
+  /**
+   * Time stamp of the clustered operation start.
+   */
+  long startTimeNanos;
 
   /**
    * Node registry.
@@ -164,7 +194,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   /**
    * Ping scheduler.
    */
-  private ScheduledExecutorService pingScheduler;
+  private ScheduledExecutorService schedulerService;
 
   /**
    * Scheduled future of ping sender task.
@@ -177,14 +207,24 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   private final ConcurrentMap<String, ScheduledFuture<?>> syncCheckSchedules = new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
 
   /**
+   * Scheduled futures of the local invalidate tasks by node name.
+   */
+  private final ConcurrentMap<String, ScheduledFuture<?>> invalidateAfterNodeCrashSchedules = new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
+
+  /**
    * Period of ping.
    */
-  private long pingPeriod = DEFAULT_PERIOD;
+  private long pingPeriod = DEFAULT_PING_PERIOD;
 
   /**
    * Delay of message sync check.
    */
-  private long syncCheckDelay = DEFAULT_PERIOD;
+  private long syncCheckDelay = DEFAULT_PING_PERIOD;
+
+  /**
+   * Delay of the invalidation after node crash suspicion.
+   */
+  private long invalidateAfterNodeCrashDelay = DEFAULT_INVALIDATE_TIMEOUT;
 
   /**
    * Creates the instance.
@@ -225,7 +265,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     }
 
     // initialize members
-    self = new NodeInfo(nodeName);
+    this.nodeName = nodeName;
     this.clusterName = clusterName;
     this.invalidationCallback = invalidationCallback;
   }
@@ -235,23 +275,44 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
    *
    * @param id
    *          The ID of the method.
+   * @param incrementCounter
+   *          Set <code>true</code> if the {@link #messageCounter} must be incremented.
    * @param args
    *          The arguments.
    */
-  protected void callRemoteMethod(final short id, final Object... args) {
+  protected void callRemoteMethod(final short id, final boolean incrementCounter,
+      final Object... args) {
     if (!channel.isConnected()) {
       return;
     }
     try {
-      MethodCall call = new MethodCall(id, args);
+      long counter = incrementCounter ? messageCounter.incrementAndGet() : messageCounter.get();
+      Object[] callArgs = new Object[args.length + RemoteCall.MANDATORY_PARAMETER_COUNT];
+      callArgs[0] = nodeName;
+      callArgs[1] = Long.valueOf(startTimeNanos);
+      callArgs[2] = Long.valueOf(counter);
+      if (args.length > 0) {
+        System.arraycopy(args, 0, callArgs, RemoteCall.MANDATORY_PARAMETER_COUNT, args.length);
+      }
+      MethodCall call = new MethodCall(id, callArgs);
       dispatcher.callRemoteMethods(null, call, ASYNC_REQUEST_OPTIONS);
-      LOGGER.info("Method called: " + call);
+      LOGGER.info("Method called: " + server.methods.findMethod(id).getName() + " "
+          + Arrays.toString(callArgs));
     } catch (Exception e) {
       throw new RuntimeException(
           "Cannot call " + server.methods.findMethod(id) + " with parameters "
               + Arrays.toString(args),
           e);
     }
+  }
+
+  @Override
+  public long getInvalidateAfterNodeCrashDelay() {
+    return invalidateAfterNodeCrashDelay;
+  }
+
+  public ConcurrentMap<String, ScheduledFuture<?>> getInvalidateAfterNodeCrashSchedules() {
+    return invalidateAfterNodeCrashSchedules;
   }
 
   @Override
@@ -265,7 +326,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   }
 
   private ScheduledExecutorService initScheduler() {
-    String baseName = getClass().getSimpleName() + "-Ping-" + clusterName + "-" + self.name;
+    String baseName = getClass().getSimpleName() + "-Ping-" + clusterName + "-" + nodeName;
     ThreadFactory threadFactory = new DefaultThreadFactory(baseName, true, true);
     ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(
         PING_SCHEDULER_CORE_POOL_SIZE, threadFactory);
@@ -275,16 +336,25 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
 
   @Override
   public void invalidate(final Object key) {
-    long counter = messageCounter.incrementAndGet();
-    callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE, self.name, self.startTimeNanos, counter, key);
+    callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE, true, key);
     LOGGER.info("Invalidate the key in the cache of remote nodes " + key);
   }
 
   @Override
   public void invalidateAll() {
-    long counter = messageCounter.incrementAndGet();
-    callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE_ALL, self.name, self.startTimeNanos, counter);
+    callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE_ALL, true);
     LOGGER.info("Invalidate the cache of remote nodes");
+  }
+
+  /**
+   * Notifies the cluster that the node has been left.
+   *
+   * @param nodeName
+   *          The name of the node.
+   */
+  void nodeLeft(final String nodeName) {
+    scheduleInvalidateOnNodeCrash(nodeName, false);
+    LOGGER.info("Node " + nodeName + " left");
   }
 
   /**
@@ -309,7 +379,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
         scheduleSynchCheckTaskIfNecessary(nodeName, gotMessageNumber);
       }
     }
-
+    scheduleInvalidateOnNodeCrash(nodeName, true);
   }
 
   /**
@@ -343,29 +413,84 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     notifyMessage(nodeName, startTimeNanos, gotMessageNumber, nodeRegistry::receive);
   }
 
+  private synchronized void scheduleInvalidateOnNodeCrash(final String nodeName,
+      final boolean reSchedule) {
+    if (schedulerService == null) {
+      return;
+    }
+    ScheduledFuture<?> prevScheduledFuture = invalidateAfterNodeCrashSchedules.get(nodeName);
+    ScheduledFuture<?> invalidateOnNodeCrashFuture;
+    if (prevScheduledFuture == null || prevScheduledFuture.isDone()) {
+      // not scheduled previously
+      if (reSchedule) {
+        // if reschedule is needed
+        // FIXME handle RejectedExecutionException?
+        invalidateOnNodeCrashFuture = schedulerService.schedule(
+            new LocalInvalidateAfterNodeCrashTask(nodeName), invalidateAfterNodeCrashDelay,
+            TimeUnit.MILLISECONDS);
+      } else {
+        // schedule is not needed, nothing to do
+        return;
+      }
+    } else {
+      // scheduled previously
+      if (reSchedule) {
+        // schedule if reschedule is needed and current delay exceeds the reschedule threshold value
+        long currendDelay = prevScheduledFuture.getDelay(TimeUnit.MILLISECONDS);
+        if (currendDelay > invalidateAfterNodeCrashDelay * RESCHEDULE_THRESHOLD_MULTIPLIER) {
+          // current delay does not exceed the threshold value, nothind to do
+          return;
+        }
+        // reschedule
+        prevScheduledFuture.cancel(false);
+        // FIXME handle RejectedExecutionException?
+        invalidateOnNodeCrashFuture = schedulerService.schedule(
+            new LocalInvalidateAfterNodeCrashTask(nodeName),
+            invalidateAfterNodeCrashDelay, TimeUnit.MILLISECONDS);
+      } else {
+        // schedule is not needed, cancel previous task
+        prevScheduledFuture.cancel(false);
+        return;
+      }
+    }
+    // put the new scheduled future to the map.
+    invalidateAfterNodeCrashSchedules.put(nodeName, invalidateOnNodeCrashFuture);
+  }
+
   private synchronized void schedulePingSenderTask(final long period) {
-    if (dispatcher == null || pingSenderSchedule != null && !pingSenderSchedule.isDone()) {
+    if (schedulerService == null) {
+      return;
+    }
+    if (pingSenderSchedule != null && !pingSenderSchedule.isDone()) {
       pingSenderSchedule.cancel(true);
     }
     // FIXME handle RejectedExecutionException?
-    pingSenderSchedule = pingScheduler.scheduleAtFixedRate(new PingSenderTask(), 0, period,
+    pingSenderSchedule = schedulerService.scheduleAtFixedRate(new PingSenderTask(), 0, period,
         TimeUnit.MILLISECONDS);
   }
 
   private synchronized void scheduleSynchCheckTaskIfNecessary(final String nodeName,
       final long gotMessageNumber) {
-    if (dispatcher == null) {
+    if (schedulerService == null) {
       return;
     }
-    ScheduledFuture<?> oldSyncCheckFuture = syncCheckSchedules.get(nodeName);
-    if (oldSyncCheckFuture == null || oldSyncCheckFuture.isDone()) {
+    ScheduledFuture<?> prevScheduledFuture = syncCheckSchedules.get(nodeName);
+    if (prevScheduledFuture == null || prevScheduledFuture.isDone()) {
+      LOGGER.info("Scheduling ping check on node " + nodeName);
       // schedule sync check of necessary
       SyncCheckTask syncCheckLater = new SyncCheckTask(nodeName, gotMessageNumber);
       // FIXME handle RejectedExecutionException?
-      ScheduledFuture<?> syncCheckFuture = pingScheduler.schedule(syncCheckLater,
+      ScheduledFuture<?> syncCheckFuture = schedulerService.schedule(syncCheckLater,
           syncCheckDelay, TimeUnit.MILLISECONDS);
       syncCheckSchedules.put(nodeName, syncCheckFuture);
+    } else {
+      LOGGER.info("Ping check already scheduled on node " + nodeName);
     }
+  }
+
+  @Override
+  public void setInvalidateAfterNodeCrashDelay(final long invalidateAfterNodeCrashDelay) {
+    this.invalidateAfterNodeCrashDelay = invalidateAfterNodeCrashDelay;
   }
 
   @Override
@@ -391,20 +516,22 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       return;
     }
     channel.setDiscardOwnMessages(true);
-    channel.setName(self.name);
+    channel.setName(nodeName);
     nodeRegistry.clear();
     messageCounter.set(0);
-    self.startTimeNanos = System.nanoTime();
+    startTimeNanos = System.nanoTime();
     dispatcher = new RpcDispatcher(channel, server);
     dispatcher.setMethodLookup(server.methods);
-    pingScheduler = initScheduler();
+    schedulerService = initScheduler();
     try {
       channel.connect(clusterName);
       schedulePingSenderTask(pingPeriod);
     } catch (Exception e) {
-      pingScheduler.shutdownNow();
+      schedulerService.shutdownNow();
+      schedulerService = null;
       pingSenderSchedule = null;
       syncCheckSchedules.clear();
+      invalidateAfterNodeCrashSchedules.clear();
       dispatcher.stop();
       channel.close();
       nodeRegistry.clear();
@@ -420,13 +547,17 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   @Override
   public synchronized void stop() {
     if (dispatcher != null) {
-      pingScheduler.shutdownNow();
+      callRemoteMethod(RemoteCall.METHOD_ID_BYE, true);
+      RpcDispatcher d = dispatcher;
+      dispatcher = null;
+      schedulerService.shutdownNow();
+      schedulerService = null;
       pingSenderSchedule = null;
       syncCheckSchedules.clear();
-      dispatcher.stop();
+      invalidateAfterNodeCrashSchedules.clear();
+      d.stop();
       channel.close();
       nodeRegistry.clear();
-      dispatcher = null;
       LOGGER.info("Channel was stopped");
     }
   }

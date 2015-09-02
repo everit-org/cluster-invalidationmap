@@ -37,8 +37,14 @@ public final class RemoteCallServer implements RemoteCall {
   }
 
   @Override
+  public void bye(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
+    clusterHandler.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
+    clusterHandler.nodeLeft(nodeName);
+  }
+
+  @Override
   public void invalidate(final String nodeName, final long startTimeNanos,
-      final long gotMessageNumber,      final Object key) {
+      final long gotMessageNumber, final Object key) {
     clusterHandler.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
     clusterHandler.invalidationCallback.invalidate(key);
   }
@@ -54,4 +60,5 @@ public final class RemoteCallServer implements RemoteCall {
   public void ping(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
     clusterHandler.notifyPing(nodeName, startTimeNanos, gotMessageNumber);
   }
+
 }

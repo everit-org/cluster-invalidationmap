@@ -37,7 +37,7 @@ public class NodeInfo implements Serializable {
   /**
    * Start time stamp in nanoseconds.
    */
-  public long startTimeNanos;
+  public long startTimeNanos = 0;
 
   /**
    * Creates the instance with the given name.

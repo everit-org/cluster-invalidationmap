@@ -15,83 +15,13 @@
  */
 package org.everit.osgi.cache.invalidation.cluster.jgroups.internal;
 
-import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * Node registry.
  */
 public class NodeRegistry {
-
-  /**
-   * State of a node.
-   */
-  private static class NodeState {
-
-    /**
-     * Start time in nanoseconds.
-     */
-    public long startTimeNanos;
-
-    // NOTE the set is a sorted set, and concurrent, and the backing code uses this nature!
-    // If it's needed switch the implementation carefully!
-    /**
-     * Got message numbers for lost message detection. Must be sorted and concurrent.
-     */
-    public final ConcurrentSkipListSet<Long> gotMessageNumbers = new ConcurrentSkipListSet<>();
-
-    public NodeState(final long startTimeNanos, final long firstMessageNumber) {
-      this.startTimeNanos = startTimeNanos;
-      gotMessageNumbers.add(Long.valueOf(firstMessageNumber));
-    }
-
-    /**
-     * Removes the consecutive numbers from the header of the given {@link ConcurrentSkipListSet}.
-     *
-     * @param numbers
-     *          The numbers.
-     * @return The first element after the maintain operation.
-     */
-    public synchronized long maintainGotMessageNumbers() {
-
-      if (gotMessageNumbers.size() < 2) {
-        // nothing to maintain if size under 2, simply return the first number
-        return gotMessageNumbers.first().longValue();
-      }
-
-      // NOTE the gotMessageNumbers set has ascending order
-
-      // search the end of the consecutive numbers on the head of the message numbers.
-      Iterator<Long> numberIt;
-      numberIt = gotMessageNumbers.iterator();
-      long endingNumber = numberIt.next().longValue();
-      do {
-        long current = numberIt.next().longValue();
-        if (endingNumber + 1 != current) {
-          // we found the end of the consecutive number block
-          // if the previous (ending candidate) number is not one less than current number
-          break;
-        }
-        endingNumber = current;
-      } while (numberIt.hasNext());
-
-      // remove all numbers less then previously found ending number
-      numberIt = gotMessageNumbers.iterator();
-      while (numberIt.hasNext()) {
-        long current = numberIt.next().longValue();
-        if (current < endingNumber) {
-          numberIt.remove();
-        } else {
-          break;
-        }
-      }
-
-      // return the first number
-      return gotMessageNumbers.first().longValue();
-    }
-  }
 
   /**
    * Node registry by name.

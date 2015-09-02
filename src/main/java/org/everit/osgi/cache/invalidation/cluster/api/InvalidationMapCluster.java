@@ -21,6 +21,14 @@ package org.everit.osgi.cache.invalidation.cluster.api;
 public interface InvalidationMapCluster extends InvalidationMapCallback {
 
   /**
+   * Returns the invalidation delay.
+   *
+   * @return The delay in milliseconds.
+   * @see #setInvalidateAfterNodeCrashDelay(long)
+   */
+  long getInvalidateAfterNodeCrashDelay();
+
+  /**
    * Returns the ping message period.
    *
    * @return The ping message period in milliseconds.
@@ -34,8 +42,15 @@ public interface InvalidationMapCluster extends InvalidationMapCallback {
    * @return The sync check delay.
    * @see #setSyncCheckDelay(long)
    */
-
   long getSyncCheckDelay();
+
+  /**
+   * Sets the delay of local cache invalidation after a node crash detected.
+   *
+   * @param invalidateAfterNodeCrashDelay
+   *          The delay in milliseconds.
+   */
+  void setInvalidateAfterNodeCrashDelay(long invalidateAfterNodeCrashDelay);
 
   /**
    * Sets the ping message scheduler period.

@@ -16,6 +16,8 @@
 package org.everit.osgi.cache.invalidation.cluster.jgroups.internal;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -37,7 +39,7 @@ public interface RemoteCall {
     /**
      * Count of the remote methods.
      */
-    private static final int METHOD_COUNT = 3;
+    private static final int METHOD_COUNT = 4;
 
     /**
      * Name of the method {@link RemoteCall#invalidate(String, long, long, Object)}.
@@ -50,9 +52,22 @@ public interface RemoteCall {
     private static final String METHOD_NAME_INVALIDATE_ALL = "invalidateAll";
 
     /**
-     * Name of the method {@link #ping(String, long, long)}.
+     * Name of the method {@link RemoteCall#ping(String, long, long)}.
      */
     private static final String METHOD_NAME_PING = "ping";
+
+    /**
+     * Name of the method {@link RemoteCall#bye(String, long, long)}.
+     */
+    private static final String METHOD_NAME_BYE = "bye";
+
+    /**
+     * Mandatory parameter types.
+     */
+    @SuppressWarnings("rawtypes")
+    private static final Class[] MANDATORY_PARAMTERE_TYPES = new Class[] {
+        String.class, Long.TYPE, Long.TYPE
+    };
 
     /**
      * Method map assigns methods toe ID.
@@ -80,8 +95,56 @@ public interface RemoteCall {
         methods.put(
             Short.valueOf(METHOD_ID_PING),
             oClass.getMethod(METHOD_NAME_PING, String.class, Long.TYPE, Long.TYPE));
+        methods.put(
+            Short.valueOf(METHOD_ID_BYE),
+            oClass.getMethod(METHOD_NAME_BYE, String.class, Long.TYPE, Long.TYPE));
+
+        checkGatheredMethods();
+
       } catch (NoSuchMethodException | SecurityException e) {
         throw new RuntimeException("Cannot gather methods", e);
+      }
+    }
+
+    /**
+     * Checks whether all of the method are declared by {@link #RemoteCall} are gathered.
+     *
+     * @return Method check result.
+     */
+    private void checkGatheredMethods() {
+      Method[] methodsDeclared = RemoteCall.class.getMethods();
+      Collection<Method> methodsGathered = methods.values();
+      if (methodsDeclared.length != methodsGathered.size()) {
+        throw new RuntimeException(
+            "Method gather problem! The count of the declared and gathered methods are different.");
+      }
+      int found = methods.size();
+      for (Method d : methodsDeclared) {
+
+        Class<?>[] dParameterTypes = d.getParameterTypes();
+
+        if (dParameterTypes.length < MANDATORY_PARAMETER_COUNT
+            || !Arrays.deepEquals(Arrays.copyOf(dParameterTypes, MANDATORY_PARAMETER_COUNT),
+                MANDATORY_PARAMTERE_TYPES)) {
+          throw new RuntimeException(
+              "Method gather problem! Method " + d.getName()
+                  + " must declare the mandatory parameters as the first thre parameters: "
+                  + Arrays.toString(MANDATORY_PARAMTERE_TYPES));
+        }
+
+        for (Method g : methodsGathered) {
+          if (d.getName().equals(g.getName())
+              && Arrays.deepEquals(dParameterTypes, g.getParameterTypes())) {
+            found--;
+            break;
+          }
+        }
+      }
+      if (found != 0) {
+        throw new RuntimeException(
+            "Method gather problem! Methods + " + Arrays.toString(RemoteCall.class.getMethods())
+                + " were declared but methods " + methods.values() + " were gathered");
+
       }
     }
 
@@ -90,6 +153,11 @@ public interface RemoteCall {
       return methods.get(Short.valueOf(id));
     }
   }
+
+  /**
+   * ID of method {@link #bye(String, long, long)}.
+   */
+  short METHOD_ID_BYE = 100;
 
   /**
    * ID of method {@link #ping(String, long, long)}.
@@ -105,6 +173,23 @@ public interface RemoteCall {
    * ID of the method {@link #invalidateAll(String, long, long)}.
    */
   short METHOD_ID_INVALIDATE_ALL = 103;
+
+  /**
+   * Mandatory parameter count.
+   */
+  int MANDATORY_PARAMETER_COUNT = Lookup.MANDATORY_PARAMTERE_TYPES.length;
+
+  /**
+   * Sends bye message. It must be sent before closing the channel.
+   *
+   * @param nodeName
+   *          The name of the sender node.
+   * @param startTimeNanos
+   *          The start time of the node in nanoseconds.
+   * @param gotMessageNumber
+   *          The incremented message number.
+   */
+  void bye(String nodeName, long startTimeNanos, long gotMessageNumber);
 
   /**
    * Invalidates a key.
