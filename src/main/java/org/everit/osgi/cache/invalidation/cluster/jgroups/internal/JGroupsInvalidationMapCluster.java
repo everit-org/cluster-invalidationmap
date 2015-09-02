@@ -15,7 +15,6 @@
  */
 package org.everit.osgi.cache.invalidation.cluster.jgroups.internal;
 
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -24,18 +23,12 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.logging.Logger;
 
 import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapCallback;
 import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapCluster;
-import org.jgroups.Channel;
 import org.jgroups.JChannel;
-import org.jgroups.blocks.MethodCall;
-import org.jgroups.blocks.RequestOptions;
-import org.jgroups.blocks.ResponseMode;
-import org.jgroups.blocks.RpcDispatcher;
 import org.jgroups.conf.ProtocolStackConfigurator;
 import org.jgroups.util.DefaultThreadFactory;
 
@@ -61,21 +54,9 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
 
     @Override
     public void run() {
+      nodeRegistry.remove(nodeName);
       invalidationCallback.invalidateAll();
-      LOGGER.warning("Node " + nodeName + " was crashed. Invalidate local cache");
-    }
-
-  }
-
-  /**
-   * Ping message sender task. It send asynchronously a ping message to all of the nodes.
-   */
-  private final class PingSenderTask implements Runnable {
-
-    @Override
-    public void run() {
-      callRemoteMethod(RemoteCall.METHOD_ID_PING, false);
-      LOGGER.info("Ping was sent");
+      LOGGER.warning("Node " + nodeName + " was crashed. Local cache has been invalidated.");
     }
 
   }
@@ -107,7 +88,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
         nodeRegistry.reset(nodeName, lastPing);
         invalidationCallback.invalidateAll();
         LOGGER.warning("Incomming packet loss detected on node " + nodeName
-            + ". Local cache has been invalidated");
+            + ". Local cache has been invalidated.");
       }
     }
   }
@@ -138,33 +119,17 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
    * delay multiplied by this constant. Must be less or equal to one, and should be not too close to
    * zero.
    */
-  private static final float RESCHEDULE_THRESHOLD_MULTIPLIER = 0.95F;
-
-  /**
-   * Asynchronous request options.
-   */
-  private static final RequestOptions ASYNC_REQUEST_OPTIONS = new RequestOptions(
-      ResponseMode.GET_NONE, 0);
+  private static final float RESCHEDULE_THRESHOLD_MULTIPLIER = 0.8F;
 
   /**
    * The backing channel.
    */
-  private final Channel channel;
+  final JChannel channel;
 
   /**
    * The name of the cluster.
    */
-  private final String clusterName;
-
-  /**
-   * The remote method call dispatcher on the top of the {@link #channel}.
-   */
-  private RpcDispatcher dispatcher = null;
-
-  /**
-   * Server instance.
-   */
-  private final RemoteCallServer server = new RemoteCallServer(this);
+  final String clusterName;
 
   /**
    * Callback.
@@ -177,19 +142,14 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   final String nodeName;
 
   /**
-   * Time stamp of the clustered operation start.
-   */
-  long startTimeNanos;
-
-  /**
    * Node registry.
    */
   private final NodeRegistry nodeRegistry = new NodeRegistry();
 
   /**
-   * Message counter.
+   * Remote dispatcher.
    */
-  private final AtomicLong messageCounter = new AtomicLong();
+  private RemoteCallDispather remote;
 
   /**
    * Ping scheduler.
@@ -270,42 +230,6 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     this.invalidationCallback = invalidationCallback;
   }
 
-  /**
-   * Calls a method remotely over the channel. Does nothing if {@link #isDroppedOut()} flag is set.
-   *
-   * @param id
-   *          The ID of the method.
-   * @param incrementCounter
-   *          Set <code>true</code> if the {@link #messageCounter} must be incremented.
-   * @param args
-   *          The arguments.
-   */
-  protected void callRemoteMethod(final short id, final boolean incrementCounter,
-      final Object... args) {
-    if (!channel.isConnected()) {
-      return;
-    }
-    try {
-      long counter = incrementCounter ? messageCounter.incrementAndGet() : messageCounter.get();
-      Object[] callArgs = new Object[args.length + RemoteCall.MANDATORY_PARAMETER_COUNT];
-      callArgs[0] = nodeName;
-      callArgs[1] = Long.valueOf(startTimeNanos);
-      callArgs[2] = Long.valueOf(counter);
-      if (args.length > 0) {
-        System.arraycopy(args, 0, callArgs, RemoteCall.MANDATORY_PARAMETER_COUNT, args.length);
-      }
-      MethodCall call = new MethodCall(id, callArgs);
-      dispatcher.callRemoteMethods(null, call, ASYNC_REQUEST_OPTIONS);
-      LOGGER.info("Method called: " + server.methods.findMethod(id).getName() + " "
-          + Arrays.toString(callArgs));
-    } catch (Exception e) {
-      throw new RuntimeException(
-          "Cannot call " + server.methods.findMethod(id) + " with parameters "
-              + Arrays.toString(args),
-          e);
-    }
-  }
-
   @Override
   public long getInvalidateAfterNodeCrashDelay() {
     return invalidateAfterNodeCrashDelay;
@@ -336,14 +260,12 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
 
   @Override
   public void invalidate(final Object key) {
-    callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE, true, key);
-    LOGGER.info("Invalidate the key in the cache of remote nodes " + key);
+    remote.invalidate(key);
   }
 
   @Override
   public void invalidateAll() {
-    callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE_ALL, true);
-    LOGGER.info("Invalidate the cache of remote nodes");
+    remote.invalidateAll();
   }
 
   /**
@@ -354,6 +276,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
    */
   void nodeLeft(final String nodeName) {
     scheduleInvalidateOnNodeCrash(nodeName, false);
+    nodeRegistry.remove(nodeName);
     LOGGER.info("Node " + nodeName + " left");
   }
 
@@ -465,7 +388,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       pingSenderSchedule.cancel(true);
     }
     // FIXME handle RejectedExecutionException?
-    pingSenderSchedule = schedulerService.scheduleAtFixedRate(new PingSenderTask(), 0, period,
+    pingSenderSchedule = schedulerService.scheduleAtFixedRate(remote::ping, 0, period,
         TimeUnit.MILLISECONDS);
   }
 
@@ -476,8 +399,8 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     }
     ScheduledFuture<?> prevScheduledFuture = syncCheckSchedules.get(nodeName);
     if (prevScheduledFuture == null || prevScheduledFuture.isDone()) {
+      // schedule sync check if necessary
       LOGGER.info("Scheduling ping check on node " + nodeName);
-      // schedule sync check of necessary
       SyncCheckTask syncCheckLater = new SyncCheckTask(nodeName, gotMessageNumber);
       // FIXME handle RejectedExecutionException?
       ScheduledFuture<?> syncCheckFuture = schedulerService.schedule(syncCheckLater,
@@ -490,6 +413,9 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
 
   @Override
   public void setInvalidateAfterNodeCrashDelay(final long invalidateAfterNodeCrashDelay) {
+    if (invalidateAfterNodeCrashDelay <= 0) {
+      throw new IllegalArgumentException("invalidateAfterNodeCrashDelay must be greater than null");
+    }
     this.invalidateAfterNodeCrashDelay = invalidateAfterNodeCrashDelay;
   }
 
@@ -512,16 +438,13 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
 
   @Override
   public synchronized void start() {
-    if (dispatcher != null) {
+    if (remote != null) {
       return;
     }
     channel.setDiscardOwnMessages(true);
     channel.setName(nodeName);
     nodeRegistry.clear();
-    messageCounter.set(0);
-    startTimeNanos = System.nanoTime();
-    dispatcher = new RpcDispatcher(channel, server);
-    dispatcher.setMethodLookup(server.methods);
+    remote = new RemoteCallDispather(this);
     schedulerService = initScheduler();
     try {
       channel.connect(clusterName);
@@ -532,10 +455,10 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       pingSenderSchedule = null;
       syncCheckSchedules.clear();
       invalidateAfterNodeCrashSchedules.clear();
-      dispatcher.stop();
+      remote.stop(false);
+      remote = null;
       channel.close();
       nodeRegistry.clear();
-      dispatcher = null;
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       }
@@ -546,16 +469,14 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
 
   @Override
   public synchronized void stop() {
-    if (dispatcher != null) {
-      callRemoteMethod(RemoteCall.METHOD_ID_BYE, true);
-      RpcDispatcher d = dispatcher;
-      dispatcher = null;
+    if (remote != null) {
+      remote.stop(true);
+      remote = null;
       schedulerService.shutdownNow();
       schedulerService = null;
       pingSenderSchedule = null;
       syncCheckSchedules.clear();
       invalidateAfterNodeCrashSchedules.clear();
-      d.stop();
       channel.close();
       nodeRegistry.clear();
       LOGGER.info("Channel was stopped");

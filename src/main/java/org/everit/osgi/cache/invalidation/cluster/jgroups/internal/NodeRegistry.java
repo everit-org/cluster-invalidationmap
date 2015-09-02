@@ -49,10 +49,8 @@ public class NodeRegistry {
   /**
    * Clears the whole registry.
    */
-  public void clear() {
-    synchronized (this) {
-      nodeState.clear();
-    }
+  public synchronized void clear() {
+    nodeState.clear();
   }
 
   /**
@@ -119,6 +117,16 @@ public class NodeRegistry {
       nodeState.put(nodeName, state);
       return true;
     }
+  }
+
+  /**
+   * Removes a node.
+   *
+   * @param nodeName
+   *          Name of the node.
+   */
+  public void remove(final String nodeName) {
+    nodeState.remove(nodeName);
   }
 
   /**

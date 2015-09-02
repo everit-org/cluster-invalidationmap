@@ -25,40 +25,40 @@ public final class RemoteCallServer implements RemoteCall {
   /**
    * The cluster handler.
    */
-  private final JGroupsInvalidationMapCluster clusterHandler;
+  private final JGroupsInvalidationMapCluster cluster;
 
   /**
    * Method lookup in the server.
    */
   final MethodLookup methods = new Lookup(this.getClass());
 
-  public RemoteCallServer(final JGroupsInvalidationMapCluster clusterHandler) {
-    this.clusterHandler = clusterHandler;
+  public RemoteCallServer(final JGroupsInvalidationMapCluster cluster) {
+    this.cluster = cluster;
   }
 
   @Override
   public void bye(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
-    clusterHandler.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
-    clusterHandler.nodeLeft(nodeName);
+    cluster.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
+    cluster.nodeLeft(nodeName);
   }
 
   @Override
   public void invalidate(final String nodeName, final long startTimeNanos,
       final long gotMessageNumber, final Object key) {
-    clusterHandler.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
-    clusterHandler.invalidationCallback.invalidate(key);
+    cluster.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
+    cluster.invalidationCallback.invalidate(key);
   }
 
   @Override
   public void invalidateAll(final String nodeName, final long startTimeNanos,
       final long gotMessageNumber) {
-    clusterHandler.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
-    clusterHandler.invalidationCallback.invalidateAll();
+    cluster.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
+    cluster.invalidationCallback.invalidateAll();
   }
 
   @Override
   public void ping(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
-    clusterHandler.notifyPing(nodeName, startTimeNanos, gotMessageNumber);
+    cluster.notifyPing(nodeName, startTimeNanos, gotMessageNumber);
   }
 
 }
