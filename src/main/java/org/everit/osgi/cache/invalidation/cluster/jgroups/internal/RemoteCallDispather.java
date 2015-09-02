@@ -26,7 +26,8 @@ import org.jgroups.blocks.RpcDispatcher;
 
 /**
  * Remote call dispatcher. Provides the methods are able to call remotely. It handles the mandatory
- * call parameter, the start time stamp and the message counter.
+ * call parameter, the start time stamp and the message counter. Also creates the server to handle
+ * the incoming remote calls.
  */
 public class RemoteCallDispather {
 
