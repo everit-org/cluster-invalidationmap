@@ -13,23 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.everit.osgi.cache.invalidation.cluster.jgroups.internal;
+package org.everit.cluster.invalidationmap.jgroups.internal;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import org.jgroups.blocks.MethodCall;
+import org.jgroups.blocks.MethodLookup;
 import org.jgroups.blocks.RequestOptions;
 import org.jgroups.blocks.ResponseMode;
 import org.jgroups.blocks.RpcDispatcher;
 
 /**
  * Remote call dispatcher. Provides the methods are able to call remotely. It handles the mandatory
- * call parameter, the start time stamp and the message counter. Also creates the server to handle
- * the incoming remote calls.
+ * call parameter, the start time stamp and the message counter. Also handles the the incoming
+ * remote calls.
  */
-public class RemoteCallDispather {
+public final class RemoteCallDispather implements RemoteCall {
 
   /**
    * Logger.
@@ -43,6 +44,11 @@ public class RemoteCallDispather {
       ResponseMode.GET_NONE, 0);
 
   /**
+   * Method lookup in the server.
+   */
+  private final MethodLookup methods = new Lookup(this.getClass());
+
+  /**
    * Cluster for the {@link RemoteCallDispather} instance was created.
    */
   private final JGroupsInvalidationMapCluster cluster;
@@ -51,11 +57,6 @@ public class RemoteCallDispather {
    * The remote method call dispatcher on the top of the {@link #channel}.
    */
   private final RpcDispatcher dispatcher;
-
-  /**
-   * Server instance.
-   */
-  private final RemoteCallServer server;
 
   /**
    * Time stamp of the clustered operation start.
@@ -73,11 +74,10 @@ public class RemoteCallDispather {
    * @param cluster
    *          The cluster for the dispatcher will be created.
    */
-  public RemoteCallDispather(final JGroupsInvalidationMapCluster cluster) {
+  RemoteCallDispather(final JGroupsInvalidationMapCluster cluster) {
     this.cluster = cluster;
-    server = new RemoteCallServer(cluster);
-    dispatcher = new RpcDispatcher(cluster.channel, server);
-    dispatcher.setMethodLookup(server.methods);
+    dispatcher = new RpcDispatcher(cluster.channel, this);
+    dispatcher.setMethodLookup(this.methods);
     startTimeNanos = System.nanoTime();
   }
 
@@ -85,9 +85,15 @@ public class RemoteCallDispather {
    * Sends bye message.
    */
   public void bye() {
-    long c = messageCounter.getAndIncrement();
+    long c = messageCounter.incrementAndGet();
     callRemoteMethod(RemoteCall.METHOD_ID_BYE, c);
     LOGGER.info("Bye was sent");
+  }
+
+  @Override
+  public void bye(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
+    cluster.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
+    cluster.nodeLeft(nodeName);
   }
 
   /**
@@ -108,11 +114,11 @@ public class RemoteCallDispather {
     MethodCall call = createMethodCall(id, messageNumber, args);
     try {
       dispatcher.callRemoteMethods(null, call, ASYNC_REQUEST_OPTIONS);
-      LOGGER.info("Method called: " + server.methods.findMethod(id).getName() + " "
+      LOGGER.info("Method called: " + methods.findMethod(id).getName() + " "
           + Arrays.toString(call.getArgs()));
     } catch (Exception e) {
       throw new RuntimeException(
-          "Cannot call " + server.methods.findMethod(id) + " with parameters "
+          "Cannot call " + methods.findMethod(id) + " with parameters "
               + Arrays.toString(call.getArgs()),
           e);
     }
@@ -149,18 +155,32 @@ public class RemoteCallDispather {
    *          Key to invalidate.
    */
   public void invalidate(final Object key) {
-    long c = messageCounter.getAndIncrement();
+    long c = messageCounter.incrementAndGet();
     callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE, c, key);
     LOGGER.info("Invalidate the key in the cache of remote nodes " + key);
+  }
+
+  @Override
+  public void invalidate(final String nodeName, final long startTimeNanos,
+      final long gotMessageNumber, final Object key) {
+    cluster.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
+    cluster.invalidationCallback.invalidate(key);
   }
 
   /**
    * Sends invalidate all of the keys message.
    */
   public void invalidateAll() {
-    long c = messageCounter.getAndIncrement();
+    long c = messageCounter.incrementAndGet();
     callRemoteMethod(RemoteCall.METHOD_ID_INVALIDATE_ALL, c);
     LOGGER.info("Invalidate the cache of remote nodes");
+  }
+
+  @Override
+  public void invalidateAll(final String nodeName, final long startTimeNanos,
+      final long gotMessageNumber) {
+    cluster.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
+    cluster.invalidationCallback.invalidateAll();
   }
 
   /**
@@ -170,6 +190,11 @@ public class RemoteCallDispather {
     long c = messageCounter.get();
     callRemoteMethod(RemoteCall.METHOD_ID_PING, c);
     LOGGER.info("Ping was sent");
+  }
+
+  @Override
+  public void ping(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
+    cluster.notifyPing(nodeName, startTimeNanos, gotMessageNumber);
   }
 
   /**

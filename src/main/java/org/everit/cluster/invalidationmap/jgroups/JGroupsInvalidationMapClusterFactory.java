@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.everit.osgi.cache.invalidation.cluster.jgroups;
+package org.everit.cluster.invalidationmap.jgroups;
 
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapCallback;
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapCluster;
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapClusterFactory;
-import org.everit.osgi.cache.invalidation.cluster.jgroups.internal.JGroupsInvalidationMapCluster;
+import org.everit.cluster.invalidationmap.InvalidationMapCallback;
+import org.everit.cluster.invalidationmap.InvalidationMapCluster;
+import org.everit.cluster.invalidationmap.InvalidationMapClusterFactory;
+import org.everit.cluster.invalidationmap.jgroups.internal.JGroupsInvalidationMapCluster;
 
 /**
  * {@link org.jgroups.JChannel} backed {@link InvalidationMapClusterFactory} factory.

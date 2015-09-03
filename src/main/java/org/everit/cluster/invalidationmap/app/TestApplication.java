@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.everit.osgi.cache.invalidation.app;
+package org.everit.cluster.invalidationmap.app;
 
 import java.awt.Color;
 import java.awt.event.ActionEvent;
@@ -39,10 +39,10 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 
-import org.everit.osgi.cache.invalidation.InvalidationMap;
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapClusterFactory;
-import org.everit.osgi.cache.invalidation.cluster.jgroups.JGroupsInvalidationMapClusterFactory;
-import org.everit.osgi.cache.invalidation.cluster.jgroups.JGroupsNodeConfiguration;
+import org.everit.cluster.invalidationmap.InvalidationMap;
+import org.everit.cluster.invalidationmap.InvalidationMapClusterFactory;
+import org.everit.cluster.invalidationmap.jgroups.JGroupsInvalidationMapClusterFactory;
+import org.everit.cluster.invalidationmap.jgroups.JGroupsNodeConfiguration;
 import org.jgroups.conf.ConfiguratorFactory;
 
 /**

@@ -13,20 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.everit.osgi.cache.invalidation.cluster.api;
+package org.everit.cluster.invalidationmap;
 
 /**
- * Cluster factory for invalidation map.
+ * Cluster for the {@link org.everit.cluster.invalidationmap.InvalidationMap}.
  */
-public interface InvalidationMapClusterFactory {
+public interface InvalidationMapCluster
+    extends InvalidationMapTaskConfiguration, InvalidationMapCallback {
 
   /**
-   * Creates the cluster.
-   *
-   * @param callback
-   *          The map invalidation callback that will be invoked due to remote invalidation.
-   * @return The cluster.
+   * Starts the clustered operation.
    */
-  InvalidationMapCluster create(InvalidationMapCallback callback);
+  void start();
+
+  /**
+   * Stops the clustered operation.
+   */
+  void stop();
 
 }

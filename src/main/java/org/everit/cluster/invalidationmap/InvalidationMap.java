@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.everit.osgi.cache.invalidation;
+package org.everit.cluster.invalidationmap;
 
 import java.util.AbstractMap;
 import java.util.Collection;
@@ -21,10 +21,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Logger;
-
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapCallback;
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapCluster;
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapClusterFactory;
 
 /**
  * This class implements a clustered invalidation map. It handles a wrapped map, and a channel for
@@ -95,6 +91,7 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V> {
    *          The map to be set as wrapped map.
    * @param clusterFactory
    *          The cluster factory.
+   * @see InvalidationMapClusterFactory#create(InvalidationMapCallback)
    */
   public InvalidationMap(final Map<K, V> map,
       final InvalidationMapClusterFactory clusterFactory) {

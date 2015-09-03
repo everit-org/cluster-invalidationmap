@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.everit.osgi.cache.invalidation.cluster.api;
+package org.everit.cluster.invalidationmap;
 
 /**
- * Cluster handler for the {@link org.everit.osgi.cache.invalidation.InvalidationMap}.
+ * Configurations for the {@link InvalidationMapTaskScheduler}.
  */
-public interface InvalidationMapCluster extends InvalidationMapCallback {
-
+public interface InvalidationMapTaskConfiguration {
   /**
    * Returns the invalidation delay.
    *
@@ -61,22 +60,13 @@ public interface InvalidationMapCluster extends InvalidationMapCallback {
   void setPingPeriod(long period);
 
   /**
-   * Sets the sync check delay in milliseconds. If the handler detects a potential message loss (or
+   * Sets the sync check delay in milliseconds. If the cluster detects a potential message loss (or
    * swap) schedules a message sync check in the time set.
    *
-   * @param synchCheckDelay
-   *          The synch check delay in milliseconds.
+   * @param syncCheckDelay
+   *          The sync check delay in milliseconds.
    */
-  void setSyncCheckDelay(long synchCheckDelay);
+  void setSyncCheckDelay(long syncCheckDelay);
 
-  /**
-   * Starts the clustered operation.
-   */
-  void start();
-
-  /**
-   * Stops the clustered operation.
-   */
-  void stop();
 
 }

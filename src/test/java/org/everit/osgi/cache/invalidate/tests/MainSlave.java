@@ -18,10 +18,10 @@ package org.everit.osgi.cache.invalidate.tests;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.everit.osgi.cache.invalidation.InvalidationMap;
-import org.everit.osgi.cache.invalidation.cluster.api.InvalidationMapClusterFactory;
-import org.everit.osgi.cache.invalidation.cluster.jgroups.JGroupsInvalidationMapClusterFactory;
-import org.everit.osgi.cache.invalidation.cluster.jgroups.JGroupsNodeConfiguration;
+import org.everit.cluster.invalidationmap.InvalidationMap;
+import org.everit.cluster.invalidationmap.InvalidationMapClusterFactory;
+import org.everit.cluster.invalidationmap.jgroups.JGroupsInvalidationMapClusterFactory;
+import org.everit.cluster.invalidationmap.jgroups.JGroupsNodeConfiguration;
 import org.jgroups.conf.ConfiguratorFactory;
 
 public class MainSlave {

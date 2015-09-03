@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.everit.osgi.cache.invalidation.cluster.jgroups.internal;
+package org.everit.cluster.invalidationmap.jgroups.internal;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -25,16 +25,15 @@ import java.util.Objects;
 import org.jgroups.blocks.MethodLookup;
 
 /**
- * Remote map interface. It declares the remote invokable methods.
- *
+ * Remote call interface. It declares the remote invokable methods.
  */
-public interface RemoteCall {
+interface RemoteCall {
 
   /**
    * Stores the remote methods from the {@link RemoteCall} implementation. It also implements the
    * {@link MethodLookup} through the gathered methods can be asked.
    */
-  class Lookup implements MethodLookup {
+  final class Lookup implements MethodLookup {
 
     /**
      * Count of the remote methods.
@@ -80,7 +79,7 @@ public interface RemoteCall {
      * @param oClass
      *          The class of the object from the necessary methods will be gathered.
      */
-    public Lookup(final Class<? extends RemoteCall> oClass) {
+    Lookup(final Class<? extends RemoteCall> oClass) {
 
       Objects.requireNonNull(oClass, "Cannot gather methods from null");
 
@@ -180,7 +179,7 @@ public interface RemoteCall {
   int MANDATORY_PARAMETER_COUNT = Lookup.MANDATORY_PARAMTERE_TYPES.length;
 
   /**
-   * Sends bye message. It must be sent before closing the channel.
+   * Handles bye message.
    *
    * @param nodeName
    *          The name of the sender node.
@@ -206,7 +205,7 @@ public interface RemoteCall {
   void invalidate(String nodeName, long startTimeNanos, long gotMessageNumber, Object key);
 
   /**
-   * Invalidate the whole map.
+   * Invalidates the whole map.
    *
    * @param nodeName
    *          The name of the sender node.
@@ -218,7 +217,7 @@ public interface RemoteCall {
   void invalidateAll(String nodeName, long startTimeNanos, long gotMessageNumber);
 
   /**
-   * Sends ping message.
+   * Handles ping message.
    *
    * @param nodeName
    *          The name of the sender node.
