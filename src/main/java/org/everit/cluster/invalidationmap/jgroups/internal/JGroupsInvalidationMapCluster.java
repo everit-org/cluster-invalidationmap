@@ -98,7 +98,7 @@ public class JGroupsInvalidationMapCluster
   /**
    * Remote dispatcher.
    */
-  private RemoteCallDispather remote = null;
+  private RemoteCallDispatcher remote = null;
 
   /**
    * Invalidation map task factory.
@@ -270,7 +270,7 @@ public class JGroupsInvalidationMapCluster
     channel.setDiscardOwnMessages(true);
     channel.setName(nodeName);
     nodeRegistry.clear();
-    remote = new RemoteCallDispather(this);
+    remote = new RemoteCallDispatcher(this);
     String schedulerThreadBaseName = getClass().getSimpleName() + "-Ping-" + clusterName + "-"
         + nodeName;
     taskScheduler = new InvalidationMapTaskScheduler(taskFactory, schedulerThreadBaseName);

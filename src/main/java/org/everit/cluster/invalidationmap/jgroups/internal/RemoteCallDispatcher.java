@@ -30,12 +30,12 @@ import org.jgroups.blocks.RpcDispatcher;
  * call parameter, the start time stamp and the message counter. Also handles the the incoming
  * remote calls.
  */
-public final class RemoteCallDispather implements RemoteCall {
+public final class RemoteCallDispatcher implements RemoteCall {
 
   /**
    * Logger.
    */
-  private static final Logger LOGGER = Logger.getLogger(RemoteCallDispather.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(RemoteCallDispatcher.class.getName());
 
   /**
    * Asynchronous request options.
@@ -49,7 +49,7 @@ public final class RemoteCallDispather implements RemoteCall {
   private final MethodLookup methods = new Lookup(this.getClass());
 
   /**
-   * Cluster for the {@link RemoteCallDispather} instance was created.
+   * Cluster for the {@link RemoteCallDispatcher} instance was created.
    */
   private final JGroupsInvalidationMapCluster cluster;
 
@@ -74,7 +74,7 @@ public final class RemoteCallDispather implements RemoteCall {
    * @param cluster
    *          The cluster for the dispatcher will be created.
    */
-  RemoteCallDispather(final JGroupsInvalidationMapCluster cluster) {
+  RemoteCallDispatcher(final JGroupsInvalidationMapCluster cluster) {
     this.cluster = cluster;
     dispatcher = new RpcDispatcher(cluster.channel, this);
     dispatcher.setMethodLookup(this.methods);
