@@ -88,7 +88,7 @@ public class JGroupsInvalidationMapCluster
   /**
    * Self name.
    */
-  final String nodeName;
+  final String selfName;
 
   /**
    * Node registry.
@@ -117,6 +117,8 @@ public class JGroupsInvalidationMapCluster
    *          Remote invalidation callback.
    * @param clusterName
    *          The name of the cluster on the channel.
+   * @param nodeName
+   *          The name of the node.
    * @param protocols
    *          The channel protocols.
    */
@@ -147,9 +149,11 @@ public class JGroupsInvalidationMapCluster
       }
       throw new RuntimeException("Cannot create the cluster", e);
     }
+    channel.setDiscardOwnMessages(true);
+    channel.setName(nodeName);
 
     // initialize members
-    this.nodeName = nodeName;
+    this.selfName = nodeName;
     this.clusterName = clusterName;
     this.invalidationCallback = invalidationCallback;
   }
@@ -210,7 +214,7 @@ public class JGroupsInvalidationMapCluster
       LOGGER.info("Node joined or restarted " + nodeName + ":" + startTimeNanos);
     } else {
       if (!notifyRegistry.apply(nodeName, gotMessageNumber)) {
-        taskScheduler.scheduleSynchCheckTask(nodeName, gotMessageNumber);
+        taskScheduler.scheduleSynchCheck(nodeName, gotMessageNumber);
       }
     }
     taskScheduler.scheduleInvalidateOnNodeCrash(nodeName, true);
@@ -267,22 +271,16 @@ public class JGroupsInvalidationMapCluster
     if (remote != null) {
       return;
     }
-    channel.setDiscardOwnMessages(true);
-    channel.setName(nodeName);
     nodeRegistry.clear();
     remote = new RemoteCallDispatcher(this);
     String schedulerThreadBaseName = getClass().getSimpleName() + "-Ping-" + clusterName + "-"
-        + nodeName;
+        + selfName;
     taskScheduler = new InvalidationMapTaskScheduler(taskFactory, schedulerThreadBaseName);
     try {
       channel.connect(clusterName);
-      taskScheduler.schedulePingSenderTask();
+      taskScheduler.schedulePingSender();
     } catch (Exception e) {
-      taskScheduler.shutdown();
-      remote.stop(false);
-      remote = null;
-      channel.close();
-      nodeRegistry.clear();
+      stop(false);
       if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       }
@@ -294,14 +292,24 @@ public class JGroupsInvalidationMapCluster
   @Override
   public synchronized void stop() {
     if (remote != null) {
-      remote.stop(true);
-      remote = null;
-      taskScheduler.shutdown();
-      taskScheduler = null;
-      channel.close();
-      nodeRegistry.clear();
+      stop(true);
       LOGGER.info("Channel was stopped");
     }
+  }
+
+  /**
+   * Stops the clustered operation.
+   *
+   * @param sendByeMessage
+   *          Send bye message before closing the channel.
+   */
+  private void stop(final boolean sendByeMessage) {
+    taskScheduler.shutdown();
+    taskScheduler = null;
+    remote.stop(sendByeMessage);
+    remote = null;
+    channel.close();
+    nodeRegistry.clear();
   }
 
 }

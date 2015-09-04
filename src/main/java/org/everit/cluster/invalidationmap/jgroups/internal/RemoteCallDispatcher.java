@@ -138,7 +138,7 @@ public final class RemoteCallDispatcher implements RemoteCall {
   protected MethodCall createMethodCall(final short id, final long messageNumber,
       final Object... args) {
     Object[] callArgs = new Object[args.length + RemoteCall.MANDATORY_PARAMETER_COUNT];
-    callArgs[0] = cluster.nodeName;
+    callArgs[0] = cluster.selfName;
     callArgs[1] = Long.valueOf(startTimeNanos);
     callArgs[2] = Long.valueOf(messageNumber);
     if (args.length > 0) {

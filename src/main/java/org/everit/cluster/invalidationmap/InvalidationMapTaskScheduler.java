@@ -146,7 +146,7 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
     ScheduledFuture<?> prevScheduledFuture = invalidateAfterNodeCrashSchedules.get(nodeName);
     ScheduledFuture<?> invalidateOnNodeCrashFuture;
     if (prevScheduledFuture == null || prevScheduledFuture.isDone()) {
-      // not scheduled previously
+      // was not scheduled previously
       if (reSchedule) {
         // if reschedule is needed
         // FIXME handle RejectedExecutionException?
@@ -158,7 +158,7 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
         return;
       }
     } else {
-      // scheduled previously
+      // was scheduled previously
       if (reSchedule) {
         // schedule if reschedule is needed and current delay exceeds the reschedule threshold value
         long currendDelay = prevScheduledFuture.getDelay(TimeUnit.MILLISECONDS);
@@ -187,7 +187,7 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
    *
    * @see InvalidationMapTaskFactory#createPingSenderTask()
    */
-  public synchronized void schedulePingSenderTask() {
+  public synchronized void schedulePingSender() {
     if (schedulerService == null) {
       return;
     }
@@ -209,7 +209,7 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
    *
    * @see InvalidationMapTaskFactory#createSyncCheckTask(String, long)
    */
-  public synchronized void scheduleSynchCheckTask(final String nodeName,
+  public synchronized void scheduleSynchCheck(final String nodeName,
       final long lastPingMessageNumber) {
     if (schedulerService == null) {
       return;
@@ -252,7 +252,7 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
           "pingPeriod must be less than invalidateAfterNodeCrashDelay");
     }
     this.pingPeriod = period;
-    schedulePingSenderTask();
+    schedulePingSender();
   }
 
   @Override

@@ -36,7 +36,7 @@ public interface InvalidationMapTaskFactory {
    * periodically with fixed delay.
    *
    * @return The ping task.
-   * @see InvalidationMapTaskScheduler#schedulePingSenderTask()
+   * @see InvalidationMapTaskScheduler#schedulePingSender()
    */
   Runnable createPingSenderTask();
 
@@ -49,7 +49,7 @@ public interface InvalidationMapTaskFactory {
    * @param lastPingMessageNumber
    *          The last ping message number.
    * @return The sync check task.
-   * @see InvalidationMapTaskScheduler#scheduleSynchCheckTask(String, long)
+   * @see InvalidationMapTaskScheduler#scheduleSynchCheck(String, long)
    */
   Runnable createSyncCheckTask(final String nodeName, final long lastPingMessageNumber);
 }
