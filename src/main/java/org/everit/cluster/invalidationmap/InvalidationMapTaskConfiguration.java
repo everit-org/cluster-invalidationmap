@@ -28,20 +28,20 @@ public interface InvalidationMapTaskConfiguration {
   long getInvalidateAfterNodeCrashDelay();
 
   /**
+   * Returns the message order check delay.
+   *
+   * @return The order check delay.
+   * @see #setMessageOrderCheckDelay(long)
+   */
+  long getMessageOrderCheckDelay();
+
+  /**
    * Returns the ping message period.
    *
    * @return The ping message period in milliseconds.
    * @see #setPingPeriod(long)
    */
   long getPingPeriod();
-
-  /**
-   * Returns the sync check delay.
-   *
-   * @return The sync check delay.
-   * @see #setSyncCheckDelay(long)
-   */
-  long getSyncCheckDelay();
 
   /**
    * Sets the delay of local cache invalidation after a node crash detected.
@@ -52,21 +52,20 @@ public interface InvalidationMapTaskConfiguration {
   void setInvalidateAfterNodeCrashDelay(long invalidateAfterNodeCrashDelay);
 
   /**
+   * Sets the message order check delay in milliseconds. If the cluster detects a potential message
+   * loss (or swap) schedules a message order check in the time set.
+   *
+   * @param messageOrederCheckDelay
+   *          The mesage oreder check delay in milliseconds.
+   */
+  void setMessageOrderCheckDelay(long messageOrederCheckDelay);
+
+  /**
    * Sets the ping message scheduler period.
    *
    * @param period
    *          The period in milliseconds.
    */
   void setPingPeriod(long period);
-
-  /**
-   * Sets the sync check delay in milliseconds. If the cluster detects a potential message loss (or
-   * swap) schedules a message sync check in the time set.
-   *
-   * @param syncCheckDelay
-   *          The sync check delay in milliseconds.
-   */
-  void setSyncCheckDelay(long syncCheckDelay);
-
 
 }

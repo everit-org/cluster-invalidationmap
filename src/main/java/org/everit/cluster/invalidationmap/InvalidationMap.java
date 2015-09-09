@@ -146,12 +146,12 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V> {
     return cluster.getInvalidateAfterNodeCrashDelay();
   }
 
-  public long getPingPeriod() {
-    return cluster.getPingPeriod();
+  public long getMessageOrderCheckDelay() {
+    return cluster.getMessageOrderCheckDelay();
   }
 
-  public long getSyncCheckDelay() {
-    return cluster.getSyncCheckDelay();
+  public long getPingPeriod() {
+    return cluster.getPingPeriod();
   }
 
   @Override
@@ -176,12 +176,12 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V> {
     cluster.setInvalidateAfterNodeCrashDelay(invalidateAfterNodeCrashDelay);
   }
 
-  public void setPingPeriod(final long period) {
-    cluster.setPingPeriod(period);
+  public void setMessageOrderCheckDelay(final long messageOrdeCheckDelay) {
+    cluster.setMessageOrderCheckDelay(messageOrdeCheckDelay);
   }
 
-  public void setSyncCheckDelay(final long synchCheckDelay) {
-    cluster.setSyncCheckDelay(synchCheckDelay);
+  public void setPingPeriod(final long period) {
+    cluster.setPingPeriod(period);
   }
 
   @Override

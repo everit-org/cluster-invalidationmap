@@ -29,15 +29,15 @@ public class NodeRegistry {
   private final ConcurrentMap<String, NodeState> nodeState = new ConcurrentHashMap<>();
 
   /**
-   * Maintains the message number registry, and checks if the node is still out of sync.
+   * Maintains the message number registry, and checks whether the node has still out of order messages.
    *
    * @param nodeName
    *          Name of the node.
    * @param messageNumber
    *          Message number.
-   * @return <code>true</code> if the node is out of sync or node not exists.
+   * @return <code>true</code> if the node has not out of order messages or node not exists.
    */
-  public boolean checkSync(final String nodeName, final long messageNumber) {
+  public boolean checkMessageOrder(final String nodeName, final long messageNumber) {
     NodeState state = nodeState.get(nodeName);
     if (state == null) {
       return true;
@@ -54,27 +54,31 @@ public class NodeRegistry {
   }
 
   /**
-   * Notifies the registry about a ping message. Also checks if the node is in sync.
+   * Notifies the registry about a ping message. Also checks whether the node has out of order messages.
    *
    * @param nodeName
    *          Name of the node.
    * @param messageNumber
    *          Message number.
-   * @return <code>true</code> if message number is in sync or node not exists.
+   * @return <code>true</code> if message numbers are in order or node not exists.
    */
   public boolean ping(final String nodeName, final long messageNumber) {
     NodeState state = nodeState.get(nodeName);
+    // message numbers are in order if
+    // the current message number is the expected (last=current) and
+    // or an older, out of order ping message (last>current)
     return state == null || state.gotMessageNumbers.last() >= messageNumber;
   }
 
   /**
-   * Notifies the registry about a non-ping message. Also checks if the node is in sync.
+   * Notifies the registry about a non-ping message. Also checks whether the node has out of order
+   * messages.
    *
    * @param nodeName
    *          Name of the node.
    * @param messageNumber
    *          Message number.
-   * @return <code>true</code> if message number is in sync or node not exists.
+   * @return <code>true</code> if message numbers are in order or node not exists.
    */
   public boolean receive(final String nodeName, final long messageNumber) {
     NodeState state = nodeState.get(nodeName);
@@ -83,9 +87,13 @@ public class NodeRegistry {
     }
     long last;
     synchronized (state) {
+      // save the number of the last message, and register the number of the current message
       last = state.gotMessageNumbers.last();
       state.gotMessageNumbers.add(Long.valueOf(messageNumber));
     }
+    // message numbers are in order if
+    // the received message is the next expected message (last+1=current) and
+    // or an older, out of order message (last+1>current)
     return last + 1 >= messageNumber;
   }
 

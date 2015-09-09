@@ -47,20 +47,20 @@ public class JGroupsInvalidationMapCluster
     }
 
     @Override
-    public Runnable createPingSenderTask() {
-      return remote::ping;
-    }
-
-    @Override
-    public Runnable createSyncCheckTask(final String nodeName, final long lastPing) {
+    public Runnable createMessageOrderCheckTask(final String nodeName, final long lastPing) {
       return () -> {
-        if (!nodeRegistry.checkSync(nodeName, lastPing)) {
+        if (!nodeRegistry.checkMessageOrder(nodeName, lastPing)) {
           nodeRegistry.reset(nodeName, lastPing);
           invalidationCallback.invalidateAll();
           LOGGER.warning("Incomming packet loss detected on node " + nodeName
               + ". Local cache has been invalidated.");
         }
       };
+    }
+
+    @Override
+    public Runnable createPingSenderTask() {
+      return remote::ping;
     }
 
   }
@@ -78,10 +78,10 @@ public class JGroupsInvalidationMapCluster
   /**
    * The name of the cluster.
    */
-  final String clusterName;
+  private final String clusterName;
 
   /**
-   * Callback.
+   * Callback for invalidation of the wrapped map.
    */
   final InvalidationMapCallback invalidationCallback;
 
@@ -109,6 +109,11 @@ public class JGroupsInvalidationMapCluster
    * Invalidation map task scheduler.
    */
   private InvalidationMapTaskScheduler taskScheduler = null;
+
+  /**
+   * The base name of the task scheduler threads.
+   */
+  private final String taskSchedulerBaseName;
 
   /**
    * Creates the instance.
@@ -156,6 +161,7 @@ public class JGroupsInvalidationMapCluster
     this.selfName = nodeName;
     this.clusterName = clusterName;
     this.invalidationCallback = invalidationCallback;
+    taskSchedulerBaseName = getClass().getSimpleName() + "-Ping-" + clusterName + "-" + nodeName;
   }
 
   @Override
@@ -164,13 +170,13 @@ public class JGroupsInvalidationMapCluster
   }
 
   @Override
-  public long getPingPeriod() {
-    return taskScheduler.getPingPeriod();
+  public long getMessageOrderCheckDelay() {
+    return taskScheduler.getMessageOrderCheckDelay();
   }
 
   @Override
-  public long getSyncCheckDelay() {
-    return taskScheduler.getSyncCheckDelay();
+  public long getPingPeriod() {
+    return taskScheduler.getPingPeriod();
   }
 
   @Override
@@ -214,7 +220,7 @@ public class JGroupsInvalidationMapCluster
       LOGGER.info("Node joined or restarted " + nodeName + ":" + startTimeNanos);
     } else {
       if (!notifyRegistry.apply(nodeName, gotMessageNumber)) {
-        taskScheduler.scheduleSynchCheck(nodeName, gotMessageNumber);
+        taskScheduler.scheduleMessageOrderCheck(nodeName, gotMessageNumber);
       }
     }
     taskScheduler.scheduleInvalidateOnNodeCrash(nodeName, true);
@@ -257,13 +263,13 @@ public class JGroupsInvalidationMapCluster
   }
 
   @Override
-  public void setPingPeriod(final long period) {
-    taskScheduler.setPingPeriod(period);
+  public void setMessageOrderCheckDelay(final long syncCheckDelay) {
+    taskScheduler.setMessageOrderCheckDelay(syncCheckDelay);
   }
 
   @Override
-  public void setSyncCheckDelay(final long syncCheckDelay) {
-    taskScheduler.setSyncCheckDelay(syncCheckDelay);
+  public void setPingPeriod(final long period) {
+    taskScheduler.setPingPeriod(period);
   }
 
   @Override
@@ -273,9 +279,7 @@ public class JGroupsInvalidationMapCluster
     }
     nodeRegistry.clear();
     remote = new RemoteCallDispatcher(this);
-    String schedulerThreadBaseName = getClass().getSimpleName() + "-Ping-" + clusterName + "-"
-        + selfName;
-    taskScheduler = new InvalidationMapTaskScheduler(taskFactory, schedulerThreadBaseName);
+    taskScheduler = new InvalidationMapTaskScheduler(taskFactory, taskSchedulerBaseName);
     try {
       channel.connect(clusterName);
       taskScheduler.schedulePingSender();
@@ -301,7 +305,7 @@ public class JGroupsInvalidationMapCluster
    * Stops the clustered operation.
    *
    * @param sendByeMessage
-   *          Send bye message before closing the channel.
+   *          Send the bye message before closing the channel.
    */
   private void stop(final boolean sendByeMessage) {
     taskScheduler.shutdown();

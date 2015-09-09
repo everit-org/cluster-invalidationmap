@@ -75,9 +75,9 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
   private ScheduledFuture<?> pingSenderSchedule;
 
   /**
-   * Scheduled futures of the sync check tasks by node name.
+   * Scheduled futures of the message order check tasks by node name.
    */
-  private final ConcurrentMap<String, ScheduledFuture<?>> syncCheckSchedules = new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
+  private final ConcurrentMap<String, ScheduledFuture<?>> messageOrderCheckSchedules = new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
 
   /**
    * Scheduled futures of the local invalidate tasks by node name.
@@ -90,9 +90,9 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
   private long pingPeriod = DEFAULT_PING_PERIOD;
 
   /**
-   * Delay of message sync check.
+   * Delay of message order check.
    */
-  private long syncCheckDelay = DEFAULT_PING_PERIOD;
+  private long messageOrderCheckDelay = DEFAULT_PING_PERIOD;
 
   /**
    * Delay of the invalidation after node crash suspicion.
@@ -119,13 +119,13 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
   }
 
   @Override
-  public synchronized long getPingPeriod() {
-    return pingPeriod;
+  public synchronized long getMessageOrderCheckDelay() {
+    return messageOrderCheckDelay;
   }
 
   @Override
-  public synchronized long getSyncCheckDelay() {
-    return syncCheckDelay;
+  public synchronized long getPingPeriod() {
+    return pingPeriod;
   }
 
   /**
@@ -183,6 +183,36 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
   }
 
   /**
+   * Schedules the message order check task on the node, if previous scheduled task is not executed.
+   *
+   * @param nodeName
+   *          The name of the node on the message order check will be scheduled.
+   * @param lastPingMessageNumber
+   *          The message number of the last ping.
+   *
+   * @see InvalidationMapTaskFactory#createMessageOrderCheckTask(String, long)
+   */
+  public synchronized void scheduleMessageOrderCheck(final String nodeName,
+      final long lastPingMessageNumber) {
+    if (schedulerService == null) {
+      return;
+    }
+    ScheduledFuture<?> prevScheduledFuture = messageOrderCheckSchedules.get(nodeName);
+    if (prevScheduledFuture == null || prevScheduledFuture.isDone()) {
+      // schedule message order check if necessary
+      LOGGER.info("Scheduling message order check on node " + nodeName);
+
+      // FIXME handle RejectedExecutionException?
+      ScheduledFuture<?> messageOrderCheckFuture = schedulerService.schedule(
+          taskFactory.createMessageOrderCheckTask(nodeName, lastPingMessageNumber),
+          messageOrderCheckDelay, TimeUnit.MILLISECONDS);
+      messageOrderCheckSchedules.put(nodeName, messageOrderCheckFuture);
+    } else {
+      LOGGER.info("Ping check already scheduled on node " + nodeName);
+    }
+  }
+
+  /**
    * Schedules or reschedules the ping sender task.
    *
    * @see InvalidationMapTaskFactory#createPingSenderTask()
@@ -199,36 +229,6 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
         taskFactory.createPingSenderTask(), 0, pingPeriod, TimeUnit.MILLISECONDS);
   }
 
-  /**
-   * Schedules the message sync check task on the node, if previous scheduled task is not executed.
-   *
-   * @param nodeName
-   *          The name of the node on the sync check will be scheduled.
-   * @param lastPingMessageNumber
-   *          The message number of the last ping.
-   *
-   * @see InvalidationMapTaskFactory#createSyncCheckTask(String, long)
-   */
-  public synchronized void scheduleSynchCheck(final String nodeName,
-      final long lastPingMessageNumber) {
-    if (schedulerService == null) {
-      return;
-    }
-    ScheduledFuture<?> prevScheduledFuture = syncCheckSchedules.get(nodeName);
-    if (prevScheduledFuture == null || prevScheduledFuture.isDone()) {
-      // schedule sync check if necessary
-      LOGGER.info("Scheduling ping check on node " + nodeName);
-
-      // FIXME handle RejectedExecutionException?
-      ScheduledFuture<?> syncCheckFuture = schedulerService.schedule(
-          taskFactory.createSyncCheckTask(nodeName, lastPingMessageNumber),
-          syncCheckDelay, TimeUnit.MILLISECONDS);
-      syncCheckSchedules.put(nodeName, syncCheckFuture);
-    } else {
-      LOGGER.info("Ping check already scheduled on node " + nodeName);
-    }
-  }
-
   @Override
   public synchronized void setInvalidateAfterNodeCrashDelay(
       final long invalidateAfterNodeCrashDelay) {
@@ -240,6 +240,14 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
           "invalidateAfterNodeCrashDelay must be greater than pingPeriod");
     }
     this.invalidateAfterNodeCrashDelay = invalidateAfterNodeCrashDelay;
+  }
+
+  @Override
+  public synchronized void setMessageOrderCheckDelay(final long messageOrderCheckDelay) {
+    if (messageOrderCheckDelay <= 0) {
+      throw new IllegalArgumentException("messageOrderCheckDelay must be greater than zero");
+    }
+    this.messageOrderCheckDelay = messageOrderCheckDelay;
   }
 
   @Override
@@ -255,14 +263,6 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
     schedulePingSender();
   }
 
-  @Override
-  public synchronized void setSyncCheckDelay(final long syncCheckDelay) {
-    if (syncCheckDelay <= 0) {
-      throw new IllegalArgumentException("synchCheckDelay must be greater than zero");
-    }
-    this.syncCheckDelay = syncCheckDelay;
-  }
-
   /**
    * Shutdowns the scheduler.
    */
@@ -270,7 +270,7 @@ public class InvalidationMapTaskScheduler implements InvalidationMapTaskConfigur
     schedulerService.shutdownNow();
     schedulerService = null;
     pingSenderSchedule = null;
-    syncCheckSchedules.clear();
+    messageOrderCheckSchedules.clear();
     invalidateAfterNodeCrashSchedules.clear();
   }
 

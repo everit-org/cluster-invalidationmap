@@ -32,6 +32,19 @@ public interface InvalidationMapTaskFactory {
   Runnable createInvalidateAfterNodeCrashTask(final String nodeName);
 
   /**
+   * Creates the task that checks whether the got message numbers is in order. Task will be invoked
+   * if the message order check delay elapsed after a message lost is suspected on a node.
+   *
+   * @param nodeName
+   *          The name of a suspected node.
+   * @param lastPingMessageNumber
+   *          The last ping message number.
+   * @return The message order check task.
+   * @see InvalidationMapTaskScheduler#scheduleMessageOrderCheck(String, long)
+   */
+  Runnable createMessageOrderCheckTask(final String nodeName, final long lastPingMessageNumber);
+
+  /**
    * Creates the task that sends a ping message to the members of the cluster. Task will be invoked
    * periodically with fixed delay.
    *
@@ -39,17 +52,4 @@ public interface InvalidationMapTaskFactory {
    * @see InvalidationMapTaskScheduler#schedulePingSender()
    */
   Runnable createPingSenderTask();
-
-  /**
-   * Creates the task that checks whether the got message numbers is in sync. Task will be invoked
-   * if the sync check delay elapsed after a message lost is suspected on a node.
-   *
-   * @param nodeName
-   *          The name of a suspected node.
-   * @param lastPingMessageNumber
-   *          The last ping message number.
-   * @return The sync check task.
-   * @see InvalidationMapTaskScheduler#scheduleSynchCheck(String, long)
-   */
-  Runnable createSyncCheckTask(final String nodeName, final long lastPingMessageNumber);
 }
