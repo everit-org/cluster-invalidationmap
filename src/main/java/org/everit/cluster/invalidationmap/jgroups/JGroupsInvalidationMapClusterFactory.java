@@ -62,8 +62,9 @@ public class JGroupsInvalidationMapClusterFactory implements InvalidationMapClus
 
   @Override
   public InvalidationMapCluster create(final InvalidationMapCallback callback) {
-    return new JGroupsInvalidationMapCluster(callback, componentName, nodeConfiguration.nodeName,
-        nodeConfiguration.protocolConfigurator);
+    return new JGroupsInvalidationMapCluster(
+        callback, componentName, nodeConfiguration.getNodeName(),
+        nodeConfiguration.getProtocolConfigurator());
   }
 
 }

@@ -24,12 +24,19 @@ import java.util.concurrent.ConcurrentMap;
 public class NodeRegistry {
 
   /**
+   * Message list maintenance will be performed if a node has more than
+   * {@value #MESSAGE_NUMBER_MAINTENANCE_THRESHOLD} registered message.
+   */
+  private static final int MESSAGE_NUMBER_MAINTENANCE_THRESHOLD = 250;
+
+  /**
    * Node registry by name.
    */
   private final ConcurrentMap<String, NodeState> nodeState = new ConcurrentHashMap<>();
 
   /**
-   * Maintains the message number registry, and checks whether the node has still out of order messages.
+   * Maintains the message number registry, and checks whether the node has still out of order
+   * messages.
    *
    * @param nodeName
    *          Name of the node.
@@ -54,7 +61,8 @@ public class NodeRegistry {
   }
 
   /**
-   * Notifies the registry about a ping message. Also checks whether the node has out of order messages.
+   * Notifies the registry about a ping message. Also checks whether the node has out of order
+   * messages.
    *
    * @param nodeName
    *          Name of the node.
@@ -65,8 +73,8 @@ public class NodeRegistry {
   public boolean ping(final String nodeName, final long messageNumber) {
     NodeState state = nodeState.get(nodeName);
     // message numbers are in order if
-    // the current message number is the expected (last=current) and
-    // or an older, out of order ping message (last>current)
+    // the current message number is the expected (last=current)
+    // or an older, out of order ping message was got (last>current)
     return state == null || state.gotMessageNumbers.last() >= messageNumber;
   }
 
@@ -90,6 +98,9 @@ public class NodeRegistry {
       // save the number of the last message, and register the number of the current message
       last = state.gotMessageNumbers.last();
       state.gotMessageNumbers.add(Long.valueOf(messageNumber));
+      if (state.gotMessageNumbers.size() > MESSAGE_NUMBER_MAINTENANCE_THRESHOLD) {
+        state.maintainGotMessageNumbers();
+      }
     }
     // message numbers are in order if
     // the received message is the next expected message (last+1=current) and

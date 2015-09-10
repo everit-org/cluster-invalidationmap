@@ -24,6 +24,7 @@ import org.everit.cluster.invalidationmap.InvalidationMap;
 import org.everit.cluster.invalidationmap.InvalidationMapClusterFactory;
 import org.everit.cluster.invalidationmap.jgroups.JGroupsInvalidationMapClusterFactory;
 import org.everit.cluster.invalidationmap.jgroups.JGroupsNodeConfiguration;
+import org.everit.cluster.invalidationmap.jgroups.DefaultJGroupsNodeConfiguration;
 import org.jgroups.conf.ConfiguratorFactory;
 
 public class MainMaster {
@@ -34,7 +35,7 @@ public class MainMaster {
     Map<String, String> wrapped = new ConcurrentHashMap<>();
 
     // node configuration
-    JGroupsNodeConfiguration nodeConfig = new JGroupsNodeConfiguration(
+    JGroupsNodeConfiguration nodeConfig = new DefaultJGroupsNodeConfiguration(
         "node-master", ConfiguratorFactory.getStackConfigurator("udp-map.xml"));
 
     // factory

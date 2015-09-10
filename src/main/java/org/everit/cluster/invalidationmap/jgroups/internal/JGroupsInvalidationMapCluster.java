@@ -161,7 +161,7 @@ public class JGroupsInvalidationMapCluster
     this.selfName = nodeName;
     this.clusterName = clusterName;
     this.invalidationCallback = invalidationCallback;
-    taskSchedulerBaseName = getClass().getSimpleName() + "-Ping-" + clusterName + "-" + nodeName;
+    taskSchedulerBaseName = getClass().getSimpleName() + "," + clusterName + "," + nodeName;
   }
 
   @Override

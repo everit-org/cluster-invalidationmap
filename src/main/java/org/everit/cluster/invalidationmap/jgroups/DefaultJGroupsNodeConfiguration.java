@@ -18,20 +18,34 @@ package org.everit.cluster.invalidationmap.jgroups;
 import org.jgroups.conf.ProtocolStackConfigurator;
 
 /**
- * Node configuration for {@link org.jgroups.JChannel}.
+ * Node configuration implementation.
  */
-public interface JGroupsNodeConfiguration {
+public class DefaultJGroupsNodeConfiguration implements JGroupsNodeConfiguration {
 
   /**
-   * Returns the name of the node in the cluster. Must be unique in the cluster.
-   * @return The node name.
+   * Name of the node.
    */
-  String getNodeName();
+  private final String nodeName;
 
   /**
-   * Returns the protocol stack configuration for the {@link org.jgroups.JChannel}.
-   * @return The configuration.
+   * The protocol configuration for the {@link org.jgroups.JChannel}.
    */
-  ProtocolStackConfigurator getProtocolConfigurator();
+  private final ProtocolStackConfigurator protocolConfigurator;
+
+  public DefaultJGroupsNodeConfiguration(final String nodeName,
+      final ProtocolStackConfigurator protocolConfigurator) {
+    this.nodeName = nodeName;
+    this.protocolConfigurator = protocolConfigurator;
+  }
+
+  @Override
+  public String getNodeName() {
+    return nodeName;
+  }
+
+  @Override
+  public ProtocolStackConfigurator getProtocolConfigurator() {
+    return protocolConfigurator;
+  }
 
 }
