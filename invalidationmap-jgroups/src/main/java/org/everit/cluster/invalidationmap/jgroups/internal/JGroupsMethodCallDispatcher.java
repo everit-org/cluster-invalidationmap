@@ -69,7 +69,7 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
   /**
    * Mandatory parameter count.
    */
-  private static final int MANDATORY_PARAMETER_COUNT = JGroupsMethodCallLookup.MANDATORY_PARAMTERE_TYPES.length;
+  private static final int MANDATORY_PARAMETER_COUNT = 3;
 
   /**
    * Method lookup in the server.
@@ -119,7 +119,7 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
   @Override
   public void bye(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
     cluster.notifyRemoteCall(nodeName, startTimeNanos, gotMessageNumber);
-    cluster.nodeLeft(nodeName);
+    cluster.notifyNodeLeft(nodeName);
   }
 
   /**

@@ -40,14 +40,6 @@ class JGroupsMethodCallLookup implements MethodLookup {
   private static final String METHOD_NAME_BYE = "bye";
 
   /**
-   * Mandatory parameter types.
-   */
-  @SuppressWarnings("rawtypes")
-  static final Class[] MANDATORY_PARAMTERE_TYPES = new Class[] {
-      String.class, Long.TYPE, Long.TYPE
-  };
-
-  /**
    * Method map assigns methods toe ID.
    */
   private final Map<Short, Method> methods = new HashMap<Short, Method>(METHOD_COUNT);

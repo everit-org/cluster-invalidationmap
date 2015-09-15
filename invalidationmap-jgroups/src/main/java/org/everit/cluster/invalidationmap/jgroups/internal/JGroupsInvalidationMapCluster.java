@@ -36,6 +36,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
    */
   public static final Logger LOGGER = Logger
       .getLogger(JGroupsInvalidationMapCluster.class.getName());
+
   /**
    * The backing channel.
    */
@@ -47,14 +48,14 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   private final String clusterName;
 
   /**
-   * Callback for invalidation of the wrapped map.
-   */
-  final MapInvalidator mapInvalidator;
-
-  /**
    * Self name.
    */
   final String selfName;
+
+  /**
+   * Callback for invalidation of the wrapped map.
+   */
+  final MapInvalidator mapInvalidator;
 
   /**
    * Node registry.
@@ -145,18 +146,6 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   }
 
   /**
-   * Notifies the cluster that the node has been left.
-   *
-   * @param nodeName
-   *          The name of the node.
-   */
-  void nodeLeft(final String nodeName) {
-    taskScheduler.scheduleInvalidateOnNodeCrash(nodeName, false);
-    nodeRegistry.remove(nodeName);
-    LOGGER.info("Node " + nodeName + " left");
-  }
-
-  /**
    * Notifies the handler about a message.
    *
    * @param nodeName
@@ -179,6 +168,18 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       }
     }
     taskScheduler.scheduleInvalidateOnNodeCrash(nodeName, true);
+  }
+
+  /**
+   * Notifies the cluster that the node has been left.
+   *
+   * @param nodeName
+   *          The name of the node.
+   */
+  void notifyNodeLeft(final String nodeName) {
+    taskScheduler.scheduleInvalidateOnNodeCrash(nodeName, false);
+    nodeRegistry.remove(nodeName);
+    LOGGER.info("Node " + nodeName + " left");
   }
 
   /**
@@ -237,7 +238,6 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
     taskScheduler = new TaskScheduler(nodeRegistry, mapInvalidator, remote);
     try {
       channel.connect(clusterName);
-      taskScheduler.schedulePingSender();
     } catch (Exception e) {
       stop(false);
       if (e instanceof RuntimeException) {
@@ -245,6 +245,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
       }
       throw new RuntimeException("Cannot start invalidation map cluster", e);
     }
+    taskScheduler.schedulePingSender();
     LOGGER.info("Channel was started");
   }
 
