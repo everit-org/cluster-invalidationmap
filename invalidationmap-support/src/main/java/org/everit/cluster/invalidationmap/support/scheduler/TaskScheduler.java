@@ -36,6 +36,16 @@ import org.everit.cluster.invalidationmap.support.remote.PingSender;
 public class TaskScheduler implements InvalidationMapConfiguration {
 
   /**
+   * Default invalidate timeout. 30 seconds.
+   */
+  private static final long DEFAULT_INVALIDATE_TIMEOUT = 30 * 1000;
+
+  /**
+   * Default period. 5 seconds.
+   */
+  private static final long DEFAULT_PING_PERIOD = 50 * 1000;
+
+  /**
    * Logger.
    */
   private static final Logger LOGGER = Logger
@@ -46,16 +56,6 @@ public class TaskScheduler implements InvalidationMapConfiguration {
    */
   private static final int PING_SCHEDULER_CORE_POOL_SIZE = 3;
 
-  /**
-   * Default period. 5 seconds.
-   */
-  private static final long DEFAULT_PING_PERIOD = 5 * 1000;
-
-  /**
-   * Default invalidate timeout. 30 seconds.
-   */
-  private static final long DEFAULT_INVALIDATE_TIMEOUT = 30 * 1000;
-
   // /**
   // * Reschedule a task only if the current delay of the previous schedule is less than the initial
   // * delay multiplied by this constant. Must be less or equal to one, and should be not too close
@@ -65,44 +65,20 @@ public class TaskScheduler implements InvalidationMapConfiguration {
   // private static final float RESCHEDULE_THRESHOLD_MULTIPLIER = 0.8F;
 
   /**
-   * The map invalidator.
+   * Delay of the invalidation after node crash suspicion.
    */
-  private final MapInvalidator invalidator;
-
-  /**
-   * Node registry.
-   */
-  private final NodeRegistry nodeRegistry;
-
-  /**
-   * Ping sender.
-   */
-  private final PingSender pingSender;
-
-  /**
-   * Backing scheduler.
-   */
-  private ScheduledExecutorService schedulerService;
-
-  /**
-   * Scheduled future of ping sender task.
-   */
-  private ScheduledFuture<?> pingSenderSchedule;
-
-  /**
-   * Scheduled futures of the message order check tasks by node name.
-   */
-  private final ConcurrentMap<String, ScheduledFuture<?>> messageOrderCheckSchedules = new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
+  private long invalidateAfterNodeCrashDelay = DEFAULT_INVALIDATE_TIMEOUT;
 
   /**
    * Scheduled futures of the local invalidate tasks by node name.
    */
-  private final ConcurrentMap<String, ScheduledFuture<?>> invalidateAfterNodeCrashSchedules = new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
+  private final ConcurrentMap<String, ScheduledFuture<?>> invalidateAfterNodeCrashSchedules =
+      new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
 
   /**
-   * Period of ping.
+   * The map invalidator.
    */
-  private long pingPeriod = DEFAULT_PING_PERIOD;
+  private final MapInvalidator invalidator;
 
   /**
    * Delay of message order check.
@@ -110,12 +86,39 @@ public class TaskScheduler implements InvalidationMapConfiguration {
   private long messageOrderCheckDelay = DEFAULT_PING_PERIOD;
 
   /**
-   * Delay of the invalidation after node crash suspicion.
+   * Scheduled futures of the message order check tasks by node name.
    */
-  private long invalidateAfterNodeCrashDelay = DEFAULT_INVALIDATE_TIMEOUT;
+  private final ConcurrentMap<String, ScheduledFuture<?>> messageOrderCheckSchedules =
+      new ConcurrentHashMap<>(); // CS_DISABLE_LINE_LENGTH
+
+  /**
+   * Node registry.
+   */
+  private final NodeRegistry nodeRegistry;
+
+  /**
+   * Period of ping.
+   */
+  private long pingPeriod = DEFAULT_PING_PERIOD;
+
+  /**
+   * Ping sender.
+   */
+  private final PingSender pingSender;
+
+  /**
+   * Scheduled future of ping sender task.
+   */
+  private ScheduledFuture<?> pingSenderSchedule;
+
+  /**
+   * Backing scheduler.
+   */
+  private ScheduledExecutorService schedulerService;
 
   /**
    * Creates the task scheduler.
+   *
    * @param nodeRegistry
    *          The node registry.
    * @param invalidator

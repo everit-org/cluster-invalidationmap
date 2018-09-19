@@ -48,11 +48,6 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
   private final String clusterName;
 
   /**
-   * Self name.
-   */
-  final String selfName;
-
-  /**
    * Callback for invalidation of the wrapped map.
    */
   final MapInvalidator mapInvalidator;
@@ -66,6 +61,11 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
    * Remote dispatcher.
    */
   private JGroupsMethodCallDispatcher remote = null;
+
+  /**
+   * Self name.
+   */
+  final String selfName;
 
   /**
    * Invalidation map task scheduler.
@@ -193,7 +193,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
    *          The number of the got non-ping message.
    */
   void notifyPing(final String nodeName, final long startTimeNanos, final long gotMessageNumber) {
-    LOGGER.info("Ping notify (" + nodeName + ":" + gotMessageNumber + ")");
+    LOGGER.fine("Ping notify (" + nodeName + ":" + gotMessageNumber + ")");
     notifyMessage(nodeName, startTimeNanos, gotMessageNumber, nodeRegistry::ping);
   }
 
@@ -209,7 +209,7 @@ public class JGroupsInvalidationMapCluster implements InvalidationMapCluster {
    */
   void notifyRemoteCall(final String nodeName, final long startTimeNanos,
       final long gotMessageNumber) {
-    LOGGER.info("Remote call notify (" + nodeName + ":" + gotMessageNumber + ")");
+    LOGGER.fine("Remote call notify (" + nodeName + ":" + gotMessageNumber + ")");
     notifyMessage(nodeName, startTimeNanos, gotMessageNumber, nodeRegistry::receive);
   }
 

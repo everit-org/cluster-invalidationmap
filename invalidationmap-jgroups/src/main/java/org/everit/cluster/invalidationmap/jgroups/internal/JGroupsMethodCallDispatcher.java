@@ -32,13 +32,7 @@ import org.jgroups.blocks.RpcDispatcher;
  * mandatory call parameter, the start time stamp and the message counter. Also handles the the
  * incoming remote calls.
  */
-class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
-
-  /**
-   * Logger.
-   */
-  private static final Logger LOGGER = Logger
-      .getLogger(JGroupsMethodCallDispatcher.class.getName()); // CS_DISABLE_LINE_LENGTH
+public class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
 
   /**
    * Asynchronous request options.
@@ -47,14 +41,20 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
       ResponseMode.GET_NONE, 0);
 
   /**
+   * Logger.
+   */
+  private static final Logger LOGGER = Logger
+      .getLogger(JGroupsMethodCallDispatcher.class.getName()); // CS_DISABLE_LINE_LENGTH
+
+  /**
+   * Mandatory parameter count.
+   */
+  private static final int MANDATORY_PARAMETER_COUNT = 3;
+
+  /**
    * ID of method {@link #bye(String, long, long)}.
    */
   static final short METHOD_ID_BYE = 100;
-
-  /**
-   * ID of method {@link #ping(String, long, long)}.
-   */
-  static final short METHOD_ID_PING = 101;
 
   /**
    * ID of the method {@link #invalidate(String, long, long, Object)}.
@@ -67,14 +67,9 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
   static final short METHOD_ID_INVALIDATE_ALL = 103;
 
   /**
-   * Mandatory parameter count.
+   * ID of method {@link #ping(String, long, long)}.
    */
-  private static final int MANDATORY_PARAMETER_COUNT = 3;
-
-  /**
-   * Method lookup in the server.
-   */
-  private final MethodLookup methods = new JGroupsMethodCallLookup(this.getClass());
+  static final short METHOD_ID_PING = 101;
 
   /**
    * Cluster for the {@link JGroupsMethodCallDispatcher} instance was created.
@@ -87,14 +82,19 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
   private final RpcDispatcher dispatcher;
 
   /**
-   * Time stamp of the clustered operation start.
-   */
-  private final long startTimeNanos;
-
-  /**
    * Message counter.
    */
   private final AtomicLong messageCounter = new AtomicLong(0);
+
+  /**
+   * Method lookup in the server.
+   */
+  private final MethodLookup methods = new JGroupsMethodCallLookup(this.getClass());
+
+  /**
+   * Time stamp of the clustered operation start.
+   */
+  private final long startTimeNanos;
 
   /**
    * Creates the dispatcher.
@@ -140,7 +140,7 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
     MethodCall call = createMethodCall(id, messageNumber, args);
     try {
       dispatcher.callRemoteMethods(null, call, ASYNC_REQUEST_OPTIONS);
-      LOGGER.info("Method called: " + methods.findMethod(id).getName() + " "
+      LOGGER.fine("Method called: " + methods.findMethod(id).getName() + " "
           + Arrays.toString(call.getArgs()));
     } catch (Exception e) {
       throw new RuntimeException(
@@ -178,7 +178,7 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
   public void invalidate(final Object key) {
     long c = messageCounter.incrementAndGet();
     callRemoteMethod(METHOD_ID_INVALIDATE, c, key);
-    LOGGER.info("Invalidate the key in the cache of remote nodes " + key);
+    LOGGER.fine("Invalidate the key in the cache of remote nodes " + key);
   }
 
   @Override
@@ -192,7 +192,7 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
   public void invalidateAll() {
     long c = messageCounter.incrementAndGet();
     callRemoteMethod(METHOD_ID_INVALIDATE_ALL, c);
-    LOGGER.info("Invalidate the cache of remote nodes");
+    LOGGER.fine("Invalidate the cache of remote nodes");
   }
 
   @Override
@@ -206,7 +206,7 @@ class JGroupsMethodCallDispatcher implements IncomingCall, OutgoingCall {
   public void ping() {
     long c = messageCounter.get();
     callRemoteMethod(METHOD_ID_PING, c);
-    LOGGER.info("Ping was sent");
+    LOGGER.finest("Ping was sent");
   }
 
   @Override

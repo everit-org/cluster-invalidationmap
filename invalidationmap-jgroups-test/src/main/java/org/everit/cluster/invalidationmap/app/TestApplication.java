@@ -50,12 +50,6 @@ import org.jgroups.conf.ConfiguratorFactory;
  */
 public class TestApplication {
 
-  private static final int WIDTH_90 = 90;
-
-  private static final int WIDTH_190 = 190;
-
-  private static final int WIDTH_350 = 350;
-
   private static final int HEIGHT_20 = 20;
 
   private static final int HEIGHT_360 = 360;
@@ -64,21 +58,27 @@ public class TestApplication {
 
   private static final int POS_10 = 10;
 
+  private static final int POS_100 = 100;
+
   private static final int POS_20 = 20;
 
+  private static final int POS_210 = 210;
+
   private static final int POS_30 = 30;
+
+  private static final int POS_340 = 340;
+
+  private static final int POS_370 = 370;
 
   private static final int POS_50 = 50;
 
   private static final int POS_70 = 70;
 
-  private static final int POS_100 = 100;
+  private static final int WIDTH_190 = 190;
 
-  private static final int POS_210 = 210;
+  private static final int WIDTH_350 = 350;
 
-  private static final int POS_340 = 340;
-
-  private static final int POS_370 = 370;
+  private static final int WIDTH_90 = 90;
 
   /**
    * Application entry point.
@@ -127,29 +127,29 @@ public class TestApplication {
     });
   }
 
-  private final InvalidationMap<String, String> map;
-
-  private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
-
-  private final JFrame frame;
-
-  private final JLabel lblMap;
-
-  private final JList<Entry<String, String>> lstMap;
-
-  private final JLabel lblKey;
-
-  private final JTextField fldKey;
-
-  private final JLabel lblValue;
-
-  private final JTextField fldValue;
-
   private final JButton btnAdd;
+
+  private final JButton btnClear;
 
   private final JButton btnRemove;
 
-  private final JButton btnClear;
+  private final JTextField fldKey;
+
+  private final JTextField fldValue;
+
+  private final JFrame frame;
+
+  private final JLabel lblKey;
+
+  private final JLabel lblMap;
+
+  private final JLabel lblValue;
+
+  private final JList<Entry<String, String>> lstMap;
+
+  private final InvalidationMap<String, String> map;
+
+  private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
   /**
    * Initializes the frame.

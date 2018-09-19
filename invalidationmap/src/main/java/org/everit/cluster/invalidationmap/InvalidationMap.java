@@ -36,8 +36,8 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V>
     implements InvalidationMapConfiguration {
 
   /**
-   * Implementation of the {@link MapInvalidator}. It's methods will be invoked by the
-   * cluster, if a remote method call command will received.
+   * Implementation of the {@link MapInvalidator}. It's methods will be invoked by the cluster, if a
+   * remote method call command will received.
    *
    * @param <K>
    *          The type of keys maintained by this map.
@@ -51,7 +51,7 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V>
      */
     private final Map<K, V> wrapped;
 
-    public RemoteMapInvalidator(final Map<K, V> wrapped) {
+    RemoteMapInvalidator(final Map<K, V> wrapped) {
       this.wrapped = wrapped;
     }
 
@@ -75,14 +75,14 @@ public class InvalidationMap<K, V> extends AbstractMap<K, V>
   private static final Logger LOGGER = Logger.getLogger(InvalidationMap.class.getName());
 
   /**
-   * The wrapped map.
-   */
-  private Map<K, V> wrapped;
-
-  /**
    * The remote map handler.
    */
   private final InvalidationMapCluster cluster;
+
+  /**
+   * The wrapped map.
+   */
+  private final Map<K, V> wrapped;
 
   /**
    * Constructs a new {@link InvalidationMap} using provided map instance and cluster factory
