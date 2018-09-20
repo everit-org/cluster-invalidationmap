@@ -43,7 +43,7 @@ public class TaskScheduler implements InvalidationMapConfiguration {
   /**
    * Default period. 5 seconds.
    */
-  private static final long DEFAULT_PING_PERIOD = 50 * 1000;
+  private static final long DEFAULT_PING_PERIOD = 5 * 1000;
 
   /**
    * Logger.

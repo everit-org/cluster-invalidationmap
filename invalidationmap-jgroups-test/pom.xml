@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.everit.cluster</groupId>
     <artifactId>org.everit.cluster.invalidationmap.parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.1</version>
   </parent>
   <artifactId>org.everit.cluster.invalidationmap.jgroups.test</artifactId>
 

@@ -28,7 +28,7 @@
 
   <groupId>org.everit.cluster</groupId>
   <artifactId>org.everit.cluster.invalidationmap.support</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
   <name>Everit - Cluster Invalidation Map Support classes</name>
   <description>Support classes to implement Invalidation Map API</description>
 
@@ -83,7 +83,7 @@
               *
             </Import-Package>
             <Export-Package>
-              org.everit.cluster.invalidationmap.support;version="0.1.0"
+              org.everit.cluster.invalidationmap.support;version="0.1.1"
             </Export-Package>
           </instructions>
         </configuration>
@@ -95,7 +95,7 @@
     <dependency>
       <groupId>org.everit.cluster</groupId>
       <artifactId>org.everit.cluster.invalidationmap</artifactId>
-      <version>0.1.0</version>
+      <version>0.1.1</version>
     </dependency>
   </dependencies>
 
